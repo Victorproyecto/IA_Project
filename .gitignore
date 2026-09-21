@@ -1,0 +1,34 @@
+# Entornos y caché de Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Secretos
+.env
+
+# IDE / sistema
+.idea/
+.vscode/
+.DS_Store
+
+# Datasets pesados (se mantiene data/.gitkeep)
+data/**/*.csv
+data/**/*.tsv
+data/**/*.parquet
+data/**/*.feather
+data/**/*.h5
+data/**/*.hdf5
+data/**/*.nc
+data/**/*.grib
+data/**/*.grib2
+data/**/*.tif
+data/**/*.tiff
+data/**/*.shp
+data/**/*.geojson
+data/**/*.gpkg
+data/**/*.zip
+data/**/*.gz
+data/**/*.tar
+data/**/*.xlsx
+data/**/*.json
+data/**/*.pkl
