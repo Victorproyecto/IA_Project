@@ -1,0 +1,1 @@
+Se alojan los scripts Python referentes a la parte de extracción de datos.
