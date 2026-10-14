@@ -35,6 +35,17 @@ Las instrucciones de ejecución se añadirán con la primera versión del MVP (v
 
 Todo cambio entra por pull request a `develop`, con revisión de otro miembro del equipo. Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/).
 
+## Equipo
+
+Grupo 10 · Proyecto Final de Big Data e IA
+
+| Nombre | Rol |
+|---|---|
+| Dennis Bonilla | Data |
+| Jaume Palau | ML |
+| Víctor Martínez | Platform |
+| Rafael Chambilla | BI |
+
 ## Fuentes de datos
 
 AEMET · PATRICOVA · CNIG/IGN · Copernicus Land · Copernicus EMS · Ayuntamiento de Valencia
