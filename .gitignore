@@ -32,3 +32,7 @@ data/**/*.tar
 data/**/*.xlsx
 data/**/*.json
 data/**/*.pkl
+
+# Modelos entrenados y particiones generadas
+data/models/
+data/processed/**/

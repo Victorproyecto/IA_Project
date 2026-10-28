@@ -1,0 +1,22 @@
+services:
+  pipeline:
+    build: { context: .., dockerfile: environment/Dockerfile }
+    image: dana-predictor
+    command: pipeline
+    env_file:
+      - path: ../.env
+        required: false
+    volumes: ["../data:/app/data"]
+    profiles: ["jobs"]
+
+  train:
+    image: dana-predictor
+    command: train
+    volumes: ["../data:/app/data"]
+    profiles: ["jobs"]
+
+  app:
+    image: dana-predictor
+    command: app
+    ports: ["8501:8501"]
+    volumes: ["../data:/app/data"]
