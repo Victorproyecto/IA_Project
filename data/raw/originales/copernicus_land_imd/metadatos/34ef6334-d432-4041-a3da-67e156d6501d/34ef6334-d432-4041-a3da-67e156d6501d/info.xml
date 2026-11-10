@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<info version="1.1">
+  <general>
+    <createDate>2025-02-07T15:25:28.516994Z</createDate>
+    <changeDate>2026-06-09T08:08:54.654749Z</changeDate>
+    <schema>iso19115-3.2018</schema>
+    <isTemplate>n</isTemplate>
+    <localId>1095193</localId>
+    <format>full</format>
+    <rating>0</rating>
+    <popularity>6056</popularity>
+    <uuid>34ef6334-d432-4041-a3da-67e156d6501d</uuid>
+    <siteId>d1bd08f0-16ac-47c3-b581-2e8db715530b</siteId>
+    <siteName>EEA geospatial data catalogue</siteName>
+  </general>
+  <categories>
+    <category name="geodatacore" />
+  </categories>
+  <privileges>
+    <group name="all">
+      <operation name="view" />
+      <operation name="download" />
+      <operation name="dynamic" />
+    </group>
+    <group name="intranet">
+      <operation name="view" />
+      <operation name="download" />
+      <operation name="dynamic" />
+    </group>
+  </privileges>
+  <public>
+    <file name="SDI_IMD_10m_paris.png" changeDate="2025-10-10T15:22:05Z" />
+    <file name="image.png" changeDate="2025-10-10T15:22:05Z" />
+  </public>
+  <private>
+    <file name="SDI_IMD_10m_paris.png" changeDate="2025-10-10T15:22:05Z" />
+    <file name="image.png" changeDate="2025-10-10T15:22:05Z" />
+  </private>
+</info>
+

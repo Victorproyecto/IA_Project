@@ -11,24 +11,7 @@ __pycache__/
 .vscode/
 .DS_Store
 
-# Datasets pesados (se mantiene data/.gitkeep)
-data/**/*.csv
-data/**/*.tsv
-data/**/*.parquet
-data/**/*.feather
-data/**/*.h5
-data/**/*.hdf5
-data/**/*.nc
-data/**/*.grib
-data/**/*.grib2
-data/**/*.tif
-data/**/*.tiff
-data/**/*.shp
-data/**/*.geojson
-data/**/*.gpkg
-data/**/*.zip
-data/**/*.gz
-data/**/*.tar
-data/**/*.xlsx
-data/**/*.json
-data/**/*.pkl
+# Resultados generados al ejecutar el proyecto (no son datos de entrada)
+data/processed/*
+!data/processed/.gitkeep
+data/models/
