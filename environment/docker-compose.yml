@@ -1,12 +1,12 @@
 services:
   ingest:
-    build: { context: .., dockerfile: environment/Dockerfile }
     image: dana-predictor
     command: ingest
     volumes: ["../data:/app/data"]
     profiles: ["jobs"]
 
   pipeline:
+    build: { context: .., dockerfile: environment/Dockerfile }
     image: dana-predictor
     command: pipeline
     env_file:
