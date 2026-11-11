@@ -2,6 +2,8 @@
 .venv/
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.ruff_cache/
 
 # Secretos
 .env
@@ -10,8 +12,14 @@ __pycache__/
 .idea/
 .vscode/
 .DS_Store
+# Ficheros de bloqueo que crea Office mientras un documento está abierto
+~$*
 
-# Resultados generados al ejecutar el proyecto (no son datos de entrada)
-data/processed/*
-!data/processed/.gitkeep
-data/models/
+# Datos: no se versiona nada de data/ (pesa GBs). Se comparte la carpeta con los originales por la nube
+#   preparados: se genera con python -m src.pipeline.ingest
+#   procesados: se genera con python -m src.pipeline.run
+#   modelos y predicciones: se generan con python -m src.pipeline.train
+data/
+
+# Descargas temporales
+temp/
