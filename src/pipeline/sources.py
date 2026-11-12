@@ -8,6 +8,7 @@ Ficheros esperados en data/preparados/ (nombres en config.PREPARED_FILES):
   zonas_inundadas_dana2024.gpkg    Copernicus EMS EMSR773 + huella GVA, columnas "episode", "severity" y "source"
   municipios.gpkg                  IGN/CNIG límites municipales, columna "municipio"
   cauces_principales.gpkg          IGN hidrografía: cauces principales, columna "nombre"
+  altura_sobre_cauce.tif           altura sobre el cauce (HAND, m), calculada en la ingesta con el MDT y los cauces
   calados_campo_dana2024.gpkg      GVA DANA 2024: calado medido en campo, columna "depth_m" (no se usa para entrenar)
   suelo_no_urbano_clc2018.gpkg     Corine Land Cover 2018, arrozales y agua permanente (esas celdas se excluyen)
   geologia_igme.gpkg               IGME GEODE 50, unidades cuaternarias agrupadas, columna "grupo"
@@ -51,7 +52,7 @@ SOURCES = {
     "patricova": SourceInfo(
         "PATRICOVA (GVA)", "Peligrosidad de inundación",
         "https://politicaterritorial.gva.es/es/web/planificacion-territorial-e-infraestructura-verde/patricova",
-        "Por verificar",
+        "CC BY (Generalitat Valenciana, ficha en datos.gob.es)",
     ),
     "neighbourhoods": SourceInfo(
         "Ayuntamiento de Valencia", "Barrios y distritos (geoportal, capas 224 y 225)",
@@ -60,7 +61,7 @@ SOURCES = {
     "flood_events": SourceInfo(
         "Copernicus EMS y GVA", "EMSR773 zonas inundadas (satélite) + huella oficial de la DANA 29-10-2024 (GVA / ICV)",
         "https://rapidmapping.emergency.copernicus.eu/EMSR773 ; https://terramapas.icv.gva.es/00_DANA2024",
-        "Copernicus data policy (libre con atribución); GVA: por verificar",
+        "Copernicus data policy (libre con atribución); GVA: CC BY 4.0",
     ),
     "municipalities": SourceInfo(
         "IGN/CNIG", "Límites municipales (recintos municipales)", "https://centrodedescargas.cnig.es", "CC BY 4.0",
@@ -71,7 +72,7 @@ SOURCES = {
     ),
     "field_depths": SourceInfo(
         "GVA / Institut Cartogràfic Valencià", "DANA 2024: altura de agua medida en campo (IVE, SGRT, UPV)",
-        "https://terramapas.icv.gva.es/00_DANA2024", "Por verificar",
+        "https://terramapas.icv.gva.es/00_DANA2024", "CC BY 4.0 (Generalitat Valenciana)",
     ),
     "non_urban": SourceInfo(
         "Copernicus Land (EEA)", "Corine Land Cover 2018: arrozales y agua permanente, para excluirlos",
@@ -80,11 +81,13 @@ SOURCES = {
     ),
     "geology": SourceInfo(
         "IGME", "Mapa Geológico de España continuo 1:50.000 (GEODE 50): unidades cuaternarias",
-        "https://mapas.igme.es/gis/rest/services/Cartografia_Geologica/IGME_Geode_50/MapServer", "Por verificar",
+        "https://mapas.igme.es/gis/rest/services/Cartografia_Geologica/IGME_Geode_50/MapServer",
+        "Licencia de uso del IGME (Ley 37/2007): libre, también comercial, citando «© CN IGME»",
     ),
     "snczi": SourceInfo(
         "MITECO (SNCZI)", "Zonas inundables T=500 años (solo referencia)",
-        "https://www.miteco.gob.es/es/cartografia-y-sig/ide/descargas/agua/zi-lamina.html", "Por verificar",
+        "https://www.miteco.gob.es/es/cartografia-y-sig/ide/descargas/agua/zi-lamina.html",
+        "Uso libre y gratuito citando «© Ministerio para la Transición Ecológica y el Reto Demográfico»",
     ),
 }
 
@@ -93,7 +96,8 @@ def _path(key: str) -> Path:
     """Ruta del fichero preparado de la fuente; error si falta (se genera con la ingesta)."""
     path = PREPARED_DIR / PREPARED_FILES[key]
     if not path.exists():
-        raise FileNotFoundError(f"Falta {path} ({SOURCES[key].name}); se genera con python -m src.pipeline.ingest")
+        origin = SOURCES[key].name if key in SOURCES else "derivado de otras fuentes"
+        raise FileNotFoundError(f"Falta {path} ({origin}); se genera con python -m src.pipeline.ingest")
     return path
 
 
@@ -221,6 +225,15 @@ def channel_distance(zones: gpd.GeoDataFrame, channels: gpd.GeoDataFrame) -> tup
 
 def load_channel_distance(zones: gpd.GeoDataFrame) -> tuple[np.ndarray, np.ndarray]:
     return channel_distance(zones, gpd.read_file(_path("channels")).to_crs(CRS))
+
+
+def load_height_above_channel(zones: gpd.GeoDataFrame) -> np.ndarray:
+    """Altura media (m) de cada celda sobre el cauce o el mar al que llega su agua siguiendo la pendiente (HAND, Height
+    Above Nearest Drainage); la calcula la ingesta. Los puntos de mar no cuentan en la media."""
+    values = _raster_points(_path("hand"), zones)
+    sea = _raster_points(_path("terrain"), zones) == SEA_ALTITUDE_M
+    values[sea] = np.nan
+    return _mean(values)
 
 
 def load_non_urban_fraction(zones: gpd.GeoDataFrame) -> np.ndarray:

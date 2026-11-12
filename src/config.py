@@ -25,6 +25,7 @@ PREPARED_FILES = {
     "flood_events": "zonas_inundadas_dana2024.gpkg",
     "municipalities": "municipios.gpkg",
     "channels": "cauces_principales.gpkg",
+    "hand": "altura_sobre_cauce.tif",
     "field_depths": "calados_campo_dana2024.gpkg",
     "non_urban": "suelo_no_urbano_clc2018.gpkg",
     "geology": "geologia_igme.gpkg",
@@ -49,14 +50,17 @@ CRS_WEB = "EPSG:4326"
 # Municipios del área piloto: València y las comarcas de L'Horta Sud y L'Horta Oest (delimitación habitual; las
 # comarcas no son una división administrativa oficial), es decir, la cuenca del Poyo y lo que inundó. La ciudad apenas
 # se inundó: el agua llegó por el Poyo. Se cubren los términos municipales enteros.
-PILOT_MUNICIPALITIES = [
-    "València",
-    # L'Horta Sud
-    "Albal", "Alcàsser", "Alfafar", "Benetússer", "Beniparrell", "Catarroja", "Llocnou de la Corona", "Massanassa",
-    "Paiporta", "Picassent", "Sedaví", "Silla",
-    # L'Horta Oest
-    "Alaquàs", "Aldaia", "Manises", "Mislata", "Paterna", "Picanya", "Quart de Poblet", "Torrent", "Xirivella",
-]
+PILOT_COMARCAS = {
+    "València": ["València"],
+    "L'Horta Sud": [
+        "Albal", "Alcàsser", "Alfafar", "Benetússer", "Beniparrell", "Catarroja", "Llocnou de la Corona", "Massanassa",
+        "Paiporta", "Picassent", "Sedaví", "Silla",
+    ],
+    "L'Horta Oest": [
+        "Alaquàs", "Aldaia", "Manises", "Mislata", "Paterna", "Picanya", "Quart de Poblet", "Torrent", "Xirivella",
+    ],
+}
+PILOT_MUNICIPALITIES = [municipality for members in PILOT_COMARCAS.values() for municipality in members]
 # Rectángulo en ETRS89 / UTM 30N (x_min, y_min, x_max, y_max) que contiene esos municipios enteros; dentro solo se quedan
 # sus celdas. Coordenadas múltiplos de 100 y 250 m para que ningún tamaño de celda recorte el borde. Las áreas solo se
 # definen aquí, en metros: lo que necesita grados (geocodificación, recortes) se calcula a partir de ellas.
@@ -90,8 +94,7 @@ N_FOLDS = 5
 # Municipio cuyas celdas reciben barrio y distrito (las de otros municipios solo llevan el municipio)
 CITY_MUNICIPALITY = "València"
 # Buscador de la aplicación: CartoCiudad (IGN) solo sugiere calles y direcciones con estos códigos postales, los del
-# área piloto. Obtenidos el 11/11/2026 con la geocodificación inversa de CartoCiudad en el centro de una celda de cada
-# 500 m (1.663 puntos). Llocnou de la Corona no salió por su tamaño, pero su código (46910) ya está en la lista.
+# área piloto, obtenidos con la geocodificación inversa de CartoCiudad sobre una malla de puntos cada 500 m.
 SEARCH_POSTAL_CODES = [
     "46001", "46002", "46003", "46004", "46005", "46006", "46007", "46008", "46009", "46010", "46011", "46012", "46013",
     "46014", "46015", "46016", "46017", "46018", "46019", "46020", "46021", "46022", "46023", "46024", "46025", "46026",
@@ -107,7 +110,7 @@ EXCLUDED_CHANNEL_NAMES = ["Antiguo Cauce del Rio Túria"]
 
 RISK_LEVELS = ["Bajo", "Medio", "Alto"]
 # Nivel Alto: las celdas de mayor probabilidad que concentran esta fracción de lo inundado (Medio + Alto concentran
-# TARGET_RECALL). No depende de cuánto se inundó el área, a diferencia de un objetivo fijo de precisión.
+# TARGET_RECALL), sin depender de cuánto se inundó el área.
 ALTO_RECALL = 0.50
 
 # Geología (IGME, GEODE 50): fracción de la celda en cada grupo de unidades, según palabras de su descripción
@@ -122,12 +125,15 @@ GEOLOGY_LABELS = {"geo_aluvial": "llanura de inundación o fondo de valle", "geo
 # En la ficha de la celda, su geología es el grupo que más ocupa si llega a esta fracción; si no, "otros"
 GEOLOGY_DOMINANT_MIN_FRACTION = 0.5
 # Variables del modelo: terreno, suelo, cauces y geología. Los mapas oficiales de peligrosidad (PATRICOVA y SNCZI) no son
-# variables: son la referencia con la que se compara
+# variables: son la referencia con la que se compara. height_above_channel_m (HAND: altura sobre el cauce o el mar al
+# que llega el agua de la celda siguiendo la pendiente) une altitud y cauce: el agua desbordada llega a lo que está poco
+# por encima del cauce, no a lo que está a poca altitud sobre el mar
 FEATURES = [
     "altitude_avg",
     "slope_avg",
     "imperviousness",
     "dist_channel_km",
+    "height_above_channel_m",
     *GEOLOGY_GROUPS,
 ]
 # Calado medido en campo a partir del cual un punto cuenta como "con agua" (comprobación con calados de campo)

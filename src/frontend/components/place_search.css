@@ -1,0 +1,74 @@
+/* Buscador con sugerencias: mismo aspecto que un campo de texto de Streamlit (variables del tema) */
+.search {
+  position: relative;
+  font-family: var(--st-font, "Source Sans Pro", sans-serif);
+  font-size: var(--st-base-font-size, 14px);
+  color: var(--st-text-color, #31333f);
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 14px;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--st-border-color, transparent);
+  border-radius: var(--st-base-radius, 0.5rem);
+  background: var(--st-secondary-background-color, #f0f2f6);
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--st-primary-color, #ff4b4b);
+}
+
+.list {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  right: 0;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--st-background-color, #ffffff);
+  border: 1px solid var(--st-border-color, #d6d6d9);
+  border-radius: var(--st-base-radius, 0.5rem);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+}
+
+.item.active,
+.item:hover {
+  background: var(--st-secondary-background-color, #f0f2f6);
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail,
+.message {
+  flex-shrink: 0;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.message {
+  padding: 0.45rem 0.75rem;
+}

@@ -37,7 +37,9 @@ def _link_dir(link: Path, target: Path) -> None:
 
 # DATA_DIR debe fijarse antes de importar src.config
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="dana_test_")
-_link_dir(Path(os.environ["DATA_DIR"]) / "preparados", PREPARED)
+# Sin data/preparados (antes de la ingesta, o en la CI) no se enlaza nada y los tests con datos se saltan
+if PREPARED.exists():
+    _link_dir(Path(os.environ["DATA_DIR"]) / "preparados", PREPARED)
 if RAW.exists():
     _link_dir(Path(os.environ["DATA_DIR"]) / "raw", RAW)
 sys.path.insert(0, str(ROOT))

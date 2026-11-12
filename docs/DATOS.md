@@ -5,7 +5,7 @@
 ```
 data/
 ├── raw/          originales de cada fuente, tal como se descargan (1,7 GB; zip en Google Drive)
-├── preparados/   un fichero por fuente, recortado al área de estudio (lo genera ingest, ~95 MB)
+├── preparados/   un fichero por fuente, recortado al área de estudio (lo genera ingest, ~113 MB)
 ├── procesados/   celdas, etiquetas, tabla de entrenamiento y predicciones (lo genera run y train)
 └── modelos/      modelo entrenado, ficha del modelo y registro de experimentos (lo genera train)
 ```
@@ -32,7 +32,7 @@ raw ──ingest──► preparados ──run──► procesados ──train�
 
 ### Ficheros preparados
 
-- Están recortados al área de estudio (València, L'Horta Sud, L'Horta Oest y la Ribera) y ocupan ~95 MB en total.
+- Están recortados al área de estudio (València, L'Horta Sud, L'Horta Oest y la Ribera) y ocupan ~113 MB en total.
 - El MDT se guarda en **centímetros enteros** (con el factor de escala 0,01 dentro del fichero, que el pipeline aplica
   al leer): en metros con decimales ocuparía 146 MB. No se pierde nada por encima de 1 cm, muy por debajo de la
   precisión del propio MDT (decímetros). El mar (altitud 0 exacta) se conserva tal cual.
@@ -43,15 +43,16 @@ raw ──ingest──► preparados ──run──► procesados ──train�
 |---|---|---|---|
 | `mdt_altitud.tif` | Altitud (cm, píxel de 5 m); el mar es 0 | IGN / CNIG, PNOA MDT05 | CC BY 4.0 |
 | `impermeabilidad_suelo.tif` | % de suelo sellado (10 m, 2024) | Copernicus Land, Imperviousness Density | Copernicus data policy |
-| `zonas_inundadas_dana2024.gpkg` | **Etiqueta:** zonas inundadas en la DANA por gravedad y fuente | Copernicus EMS (EMSR773) + huella oficial de la GVA | Copernicus data policy; GVA por verificar |
-| `calados_campo_dana2024.gpkg` | Calado medido en campo tras la DANA (no se usa para entrenar) | GVA / ICV | Por verificar |
+| `zonas_inundadas_dana2024.gpkg` | **Etiqueta:** zonas inundadas en la DANA por gravedad y fuente | Copernicus EMS (EMSR773) + huella oficial de la GVA | Copernicus data policy; GVA: CC BY 4.0 |
+| `calados_campo_dana2024.gpkg` | Calado medido en campo tras la DANA (no se usa para entrenar) | GVA / ICV | CC BY 4.0 |
 | `cauces_principales.gpkg` | Cauces con nombre y en superficie | IGN, Hidrografía de España (INSPIRE HY) | CC BY 4.0 |
-| `geologia_igme.gpkg` | Unidades cuaternarias agrupadas (aluvial, marjal, abanico, glacis) | IGME, GEODE 50 | Por verificar |
+| `altura_sobre_cauce.tif` | Altura sobre el cauce, HAND (cm, píxel de 10 m) | Calculada en la ingesta con `mdt_altitud.tif` y `cauces_principales.gpkg` | La de sus fuentes (CC BY 4.0) |
+| `geologia_igme.gpkg` | Unidades cuaternarias agrupadas (aluvial, marjal, abanico, glacis) | IGME, GEODE 50 | Licencia de uso del IGME (libre, con cita) |
 | `suelo_no_urbano_clc2018.gpkg` | Arrozales y agua permanente (esas celdas se excluyen) | Copernicus Land, Corine Land Cover 2018 | Copernicus data policy |
 | `municipios.gpkg` | Términos municipales | IGN / CNIG | CC BY 4.0 |
 | `barrios_valencia.gpkg` | Barrios de València con su distrito | Ayuntamiento de València | CC BY 4.0 |
-| `patricova_peligrosidad.gpkg` | Peligrosidad de inundación, niveles 1-6 (**solo referencia**) | GVA, PATRICOVA | Por verificar |
-| `snczi_zona_inundable_t500.gpkg` | Zona inundable T=500 años (**solo referencia**) | MITECO, SNCZI | Por verificar |
+| `patricova_peligrosidad.gpkg` | Peligrosidad de inundación, niveles 1-6 (**solo referencia**) | GVA, PATRICOVA | CC BY |
+| `snczi_zona_inundable_t500.gpkg` | Zona inundable T=500 años (**solo referencia**) | MITECO, SNCZI | Libre, citando a MITECO |
 
 ## Originales (`data/raw/`), la entrada de la ingesta
 
@@ -79,14 +80,14 @@ data/raw/
 | `cnig_mdt05` | Modelo digital del terreno, píxel de 5 m | Centro de Descargas del CNIG, producto "MDT05", hojas MTN50 0695, 0696, 0721, 0722, 0746 y 0747: https://centrodedescargas.cnig.es | CC BY 4.0 (IGN) |
 | `copernicus_land_imd` | % de suelo sellado, 10 m, 2024 | Copernicus Land Monitoring Service, "Imperviousness Density 2024 (raster 10 m and 100 m), Europe, 3-yearly": https://land.copernicus.eu (requiere cuenta EU Login). Colección **Imperviousness Density 10 m**, proyección **EPSG:3035**, GeoTIFF. El fichero debe empezar por `CLMS_NVLCC_IMD_` | Copernicus data policy. DOI 10.2909/f0bcb6f0-d775-4218-bec1-13adea01ff8f |
 | `copernicus_ems_EMSR773` | Zonas inundadas y calado de la DANA (satélite) | Copernicus EMS Rapid Mapping, activación EMSR773, productos DEL de AOI01, AOI03 y AOI04 (descarga directa): `https://rapidmapping.emergency.copernicus.eu/backend/EMSR773/AOI01/DEL_PRODUCT/EMSR773_AOI01_DEL_PRODUCT_v1.zip` y lo mismo con `AOI03` y `AOI04` | Copernicus data policy |
-| `gva_dana2024` | **Huella oficial de la zona inundada** (parte de la etiqueta) y **altura de agua medida en campo** | WFS del ICV `https://terramapas.icv.gva.es/00_DANA2024`, en GeoJSON y EPSG:25830 (`...?service=WFS&version=2.0.0&request=GetFeature&typenames=ms:<capa>&srsName=urn:ogc:def:crs:EPSG::25830&outputFormat=application/json; subtype=geojson`). Capas: `DANA2024.ZonasInundadas.HuellaInundacion` → `huella_inundacion.geojson`; `DANA2024.ZonasInundadas.AlturaAgua.IVE`, `.SGRT` y `.UPV` → `altura_agua_ive.geojson`, `altura_agua_sgrt.geojson`, `altura_agua_upv.geojson` | **Por verificar** (crítico: la etiqueta depende de la huella) |
+| `gva_dana2024` | **Huella oficial de la zona inundada** (parte de la etiqueta) y **altura de agua medida en campo** | WFS del ICV `https://terramapas.icv.gva.es/00_DANA2024`, en GeoJSON y EPSG:25830 (`...?service=WFS&version=2.0.0&request=GetFeature&typenames=ms:<capa>&srsName=urn:ogc:def:crs:EPSG::25830&outputFormat=application/json; subtype=geojson`). Capas: `DANA2024.ZonasInundadas.HuellaInundacion` → `huella_inundacion.geojson`; `DANA2024.ZonasInundadas.AlturaAgua.IVE`, `.SGRT` y `.UPV` → `altura_agua_ive.geojson`, `altura_agua_sgrt.geojson`, `altura_agua_upv.geojson` | CC BY 4.0 (Generalitat Valenciana) |
 | `ign_hidrografia` | Cauces (Hidrografía de España, INSPIRE HY, origen BTN25) | API OGC del IGN: `https://api-features.idee.es/collections/watercourse/items?bbox=-0.70000,39.10000,-0.14000,39.65000&f=json&limit=1000` (paginado), guardado como `watercourse.geojson` | CC BY 4.0 (IGN) |
-| `igme_geode50` | Mapa geológico continuo 1:50.000 (GEODE 50) | Servicio ArcGIS REST del IGME `https://mapas.igme.es/gis/rest/services/Cartografia_Geologica/IGME_Geode_50/MapServer`, polígonos del área de estudio en GeoJSON (WGS84), guardado como `geode50.geojson` | Por verificar |
+| `igme_geode50` | Mapa geológico continuo 1:50.000 (GEODE 50) | Servicio ArcGIS REST del IGME `https://mapas.igme.es/gis/rest/services/Cartografia_Geologica/IGME_Geode_50/MapServer`, polígonos del área de estudio en GeoJSON (WGS84), guardado como `geode50.geojson` | Licencia de uso del IGME (libre, con cita) |
 | `copernicus_clc` | Corine Land Cover 2018: arrozales (213) y agua permanente (511, 512, 521, 522, 523) | Servicio ArcGIS REST de la EEA `https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer/0`, polígonos del área de estudio con esos códigos en GeoJSON, guardado como `clc2018_no_urbano.geojson` | Copernicus data policy |
 | `cnig_limites_municipales` | Límites municipales (recintos) | Centro de Descargas del CNIG → Información geográfica de referencia → Delimitaciones territoriales → **Límites municipales, provinciales y autonómicos** → "Límites y Unidades Administrativas Actuales" (SHAPEFILE). Del zip solo hace falta la carpeta `recintos_municipales_inspire_peninbal_etrs89` | CC BY 4.0 (IGN) |
 | `ayuntamiento_valencia` | Barrios y distritos | Geoportal del Ayuntamiento de València: barrios `https://geoportal.valencia.es/apps/OpenData/UrbanismoEInfraestructuras/UrbanismoEInfraestructuras__224.zip`, distritos `..._225.zip`. Vienen en shapefile: convertir a GeoJSON con el nombre indicado | CC BY 4.0 |
-| `gva_patricova` | Peligrosidad de inundación (niveles 1-7) | Institut Cartogràfic Valencià, capa "orde_patricova_peligrosidad_inun" en SHP: http://descargas.icv.gva.es/server_api/gdb/descarga/index.html?capas=%22infraestructuras.gdb/orde_patricova_peligrosidad_inun%22&formato=Shapefile%20-%20SHP%20-%20.shp&geocat=DATO_DIRECTA_SHP | Por verificar |
-| `snczi` | Zonas inundables del SNCZI, periodo de retorno de 500 años (toda España) | MITECO, descarga de láminas de zonas inundables: https://www.miteco.gob.es/es/cartografia-y-sig/ide/descargas/agua/zi-lamina.html, fichero `laminasPB-q500.zip` | Por verificar |
+| `gva_patricova` | Peligrosidad de inundación (niveles 1-7) | Institut Cartogràfic Valencià, capa "orde_patricova_peligrosidad_inun" en SHP: http://descargas.icv.gva.es/server_api/gdb/descarga/index.html?capas=%22infraestructuras.gdb/orde_patricova_peligrosidad_inun%22&formato=Shapefile%20-%20SHP%20-%20.shp&geocat=DATO_DIRECTA_SHP | CC BY |
+| `snczi` | Zonas inundables del SNCZI, periodo de retorno de 500 años (toda España) | MITECO, descarga de láminas de zonas inundables: https://www.miteco.gob.es/es/cartografia-y-sig/ide/descargas/agua/zi-lamina.html, fichero `laminasPB-q500.zip` | Libre, citando a MITECO |
 
 ## Qué hace la ingesta (`src/pipeline/ingest.py`)
 
@@ -101,6 +102,7 @@ a las celdas del borde); los rásteres no lo necesitan, porque solo se leen dent
 | `zonas_inundadas_dana2024.gpkg` | **Etiqueta.** Copernicus EMS: zona inundada = agua o rastro de agua (`observedEvent`); gravedad por calado (`floodDepth`): < 0,5 m Leve, 0,5-1 m Moderada, > 1 m Grave; lo que no tiene calado cuenta como Leve. **Huella de la GVA:** se añade lo que no marca Copernicus (sobre todo cascos urbanos, donde el satélite no ve el agua entre edificios), como Leve. Cada polígono lleva su fuente (`source`) |
 | `calados_campo_dana2024.gpkg` | Puntos con calado medido (`altura_agua_m` → `depth_m`). No se usan para entrenar: dan gravedad a las celdas que solo marca la GVA y sirven para comprobar el modelo |
 | `cauces_principales.gpkg` | El nuevo cauce del Turia (*Canal del Riu Túria*) y los cursos naturales **con nombre y en superficie**. Se excluyen acequias, canales de riego, tramos subterráneos, cursos sin nombre (desagües menores) y el antiguo cauce del Turia (no lleva agua desde que el río se desvió tras la riada de 1957) |
+| `altura_sobre_cauce.tif` | **Altura sobre el cauce (HAND):** el MDT se promedia a 10 m y se rebajan 10 m los cauces principales y el mar, para que el agua siga el trazado del IGN. `pysheds` rellena las depresiones, resuelve las zonas planas y calcula la dirección del flujo (D8). Cada píxel se sigue cuesta abajo hasta su desagüe (cauce, mar, punto sin salida como la Albufera o borde del MDT) y se guarda su altura sobre él, en centímetros enteros como el MDT. Tarda unos 30 s |
 | `geologia_igme.gpkg` | Agrupa las unidades por palabras de su descripción (`config.GEOLOGY_GROUPS`); el resto no se guarda |
 | `suelo_no_urbano_clc2018.gpkg` | Se queda con los códigos de arrozal y agua permanente (`config.NON_URBAN_CLC_CODES`) |
 | `municipios.gpkg` | Recintos municipales (`NAMEUNIT` → `municipio`) |
@@ -115,6 +117,24 @@ zona inundada vienen guardadas como "huecos" fuera del borde exterior, de modo q
 (−49.515 ha). Es un fallo de formato al exportar, no de los datos. La ingesta la repara con `make_valid` y comprueba
 que la superficie resultante coincide con la que declara la propia GVA en el campo `area_ha` (42.550 ha); si no
 coincide, se detiene. Hay un test para ello (`tests/test_data.py`), que necesita la descarga original.
+
+## Licencias y atribución
+
+Todas las fuentes permiten reutilizar y redistribuir los datos (también el zip de `data/raw` en Google Drive) citando
+la fuente. Las licencias de la GVA, PATRICOVA, el IGME y el SNCZI se comprobaron el 12/11/2026 donde indica la tabla;
+las del IGN, Copernicus y el Ayuntamiento son las que publica cada portal.
+
+| Fuente | Licencia | Dónde consta | Cita |
+|---|---|---|---|
+| IGN / CNIG (MDT05, límites municipales, hidrografía) | CC BY 4.0 | Centro de Descargas del CNIG | «© Instituto Geográfico Nacional» |
+| Copernicus (EMS, Imperviousness Density, Corine Land Cover) | Copernicus data policy: libre, con atribución | Portales de Copernicus | «© European Union, Copernicus» |
+| GVA / ICV: huella de la DANA y calados medidos en campo | CC BY 4.0 | Servicio WFS `https://terramapas.icv.gva.es/00_DANA2024?service=WFS&request=GetCapabilities` (`AccessConstraints`: «CC BY 4.0 Generalitat») | «© Generalitat Valenciana (ICV)» |
+| GVA: PATRICOVA | CC BY | Ficha en datos.gob.es: https://datos.gob.es/es/catalogo/a10002983-patricova-peligrosidad-por-inundacion-plan-de-accion-territorial-de-caracter-sectorial-sobre-prevencion-del-riesgo-de-inundacion-en-la-comunitat-valenciana | «© Generalitat Valenciana» |
+| IGME: GEODE 50 | Licencia de uso del IGME (Ley 37/2007 y RD 1495/2011): libre y gratuita, uso comercial y no comercial, sin desnaturalizar la información | https://info.igme.es/media/Pdfs/LicUsoIGME_GENERICA_2022.pdf | «Origen de los datos: © CN Instituto Geológico y Minero de España (IGME)» |
+| MITECO: SNCZI | Uso libre y gratuito citando al ministerio | Página de descarga: https://www.miteco.gob.es/es/cartografia-y-sig/ide/descargas/agua/zi-lamina.html | «© Ministerio para la Transición Ecológica y el Reto Demográfico» |
+| Ayuntamiento de València (barrios y distritos) | CC BY 4.0 | Portal de datos abiertos | «© Ajuntament de València» |
+
+La geología se agrupa en 4 tipos de terreno, sin cambiar el sentido de cada unidad, como pide la licencia del IGME.
 
 ## Privacidad
 

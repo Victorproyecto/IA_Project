@@ -32,6 +32,7 @@ def build_zones(extent: tuple[float, float, float, float] = PILOT_EXTENT, pilot:
     zones["imperviousness"] = sources.load_imperviousness(zones).round(1)
     zones["dist_channel_km"], zones["channel_name"] = sources.load_channel_distance(zones)
     zones["dist_channel_km"] = zones["dist_channel_km"].round(3)
+    zones["height_above_channel_m"] = sources.load_height_above_channel(zones).round(2)
     zones = zones.join(sources.load_geology(zones))
     # Grupo geológico que más ocupa la celda (para la ficha)
     geology = zones[list(GEOLOGY_GROUPS)]

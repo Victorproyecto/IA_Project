@@ -23,6 +23,8 @@ def check_zones(zones: gpd.GeoDataFrame) -> list[str]:
         errors.append("zones: celda sin municipio")
     if (zones["dist_channel_km"] < 0).any() or zones["dist_channel_km"].isna().any():
         errors.append("zones: distancia al cauce negativa o vacía")
+    if zones["height_above_channel_m"].isna().any():
+        errors.append("zones: altura sobre el cauce vacía")
     if zones.loc[zones["municipality"] != CITY_MUNICIPALITY, "neighbourhood"].notna().any():
         errors.append("zones: barrio de Valencia asignado a una celda de otro municipio")
     if not zones[list(GEOLOGY_GROUPS)].stack().between(0, 1).all():

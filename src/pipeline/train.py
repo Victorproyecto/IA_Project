@@ -28,7 +28,7 @@ from src.pipeline.features import area_unit
 
 log = logging.getLogger("train")
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 SHORT_NAMES = {"logistic_regression": "lr", "random_forest": "rf"}
 
 # Hiperparámetros. El bosque usa hojas de al menos 5 celdas para no memorizar celdas sueltas

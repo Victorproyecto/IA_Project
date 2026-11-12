@@ -11,6 +11,7 @@ COPY environment/requirements.txt environment/requirements.txt
 RUN pip install --no-cache-dir -r environment/requirements.txt
 
 COPY pytest.ini .
+COPY .streamlit/ .streamlit/
 COPY src/ src/
 COPY tests/ tests/
 COPY environment/entrypoint.sh /entrypoint.sh
