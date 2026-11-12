@@ -90,8 +90,7 @@ N_FOLDS = 5
 # Municipio cuyas celdas reciben barrio y distrito (las de otros municipios solo llevan el municipio)
 CITY_MUNICIPALITY = "València"
 # Buscador de la aplicación: CartoCiudad (IGN) solo sugiere calles y direcciones con estos códigos postales, los del
-# área piloto. Obtenidos el 11/11/2026 con la geocodificación inversa de CartoCiudad en el centro de una celda de cada
-# 500 m (1.663 puntos). Llocnou de la Corona no salió por su tamaño, pero su código (46910) ya está en la lista.
+# área piloto, obtenidos con la geocodificación inversa de CartoCiudad sobre una malla de puntos cada 500 m.
 SEARCH_POSTAL_CODES = [
     "46001", "46002", "46003", "46004", "46005", "46006", "46007", "46008", "46009", "46010", "46011", "46012", "46013",
     "46014", "46015", "46016", "46017", "46018", "46019", "46020", "46021", "46022", "46023", "46024", "46025", "46026",
@@ -107,7 +106,7 @@ EXCLUDED_CHANNEL_NAMES = ["Antiguo Cauce del Rio Túria"]
 
 RISK_LEVELS = ["Bajo", "Medio", "Alto"]
 # Nivel Alto: las celdas de mayor probabilidad que concentran esta fracción de lo inundado (Medio + Alto concentran
-# TARGET_RECALL). No depende de cuánto se inundó el área, a diferencia de un objetivo fijo de precisión.
+# TARGET_RECALL), sin depender de cuánto se inundó el área.
 ALTO_RECALL = 0.50
 
 # Geología (IGME, GEODE 50): fracción de la celda en cada grupo de unidades, según palabras de su descripción
