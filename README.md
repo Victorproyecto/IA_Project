@@ -113,16 +113,16 @@ data/                      # no se versiona
 |---|---|---|
 | `mdt_altitud.tif` | IGN / CNIG, PNOA MDT05 | CC BY 4.0 |
 | `impermeabilidad_suelo.tif` | Copernicus Land, Imperviousness Density 2024 | Copernicus data policy |
-| `zonas_inundadas_dana2024.gpkg` | Copernicus EMS (EMSR773) + huella oficial de la DANA (GVA / ICV) | Copernicus data policy; GVA por verificar |
-| `calados_campo_dana2024.gpkg` | GVA / ICV, calado medido en campo (no se usa para entrenar) | Por verificar |
+| `zonas_inundadas_dana2024.gpkg` | Copernicus EMS (EMSR773) + huella oficial de la DANA (GVA / ICV) | Copernicus data policy; GVA: CC BY 4.0 |
+| `calados_campo_dana2024.gpkg` | GVA / ICV, calado medido en campo (no se usa para entrenar) | CC BY 4.0 |
 | `cauces_principales.gpkg` | IGN, Hidrografía de España (INSPIRE HY) | CC BY 4.0 |
 | `altura_sobre_cauce.tif` | Calculada en la ingesta con el MDT y los cauces (HAND) | La de sus fuentes (CC BY 4.0) |
-| `geologia_igme.gpkg` | IGME, GEODE 50 | Por verificar |
+| `geologia_igme.gpkg` | IGME, GEODE 50 | Licencia de uso del IGME (libre, con cita) |
 | `suelo_no_urbano_clc2018.gpkg` | Copernicus Land, Corine Land Cover 2018 | Copernicus data policy |
 | `municipios.gpkg` | IGN / CNIG, límites municipales | CC BY 4.0 |
 | `barrios_valencia.gpkg` | Ayuntamiento de València, datos abiertos | CC BY 4.0 |
-| `patricova_peligrosidad.gpkg` | GVA, PATRICOVA (solo referencia) | Por verificar |
-| `snczi_zona_inundable_t500.gpkg` | MITECO, SNCZI T=500 años (solo referencia) | Por verificar |
+| `patricova_peligrosidad.gpkg` | GVA, PATRICOVA (solo referencia) | CC BY |
+| `snczi_zona_inundable_t500.gpkg` | MITECO, SNCZI T=500 años (solo referencia) | Libre, citando a MITECO |
 
 Detalle de cada fuente, cómo descargarla y qué hace la ingesta: [docs/DATOS.md](docs/DATOS.md).
 

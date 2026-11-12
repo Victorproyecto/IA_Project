@@ -58,8 +58,6 @@ no ha visto (la Ribera). Detalle en `docs/MEJORAS_MODELO_NF3.md`.
 - Las funciones de la Fase 1 que dependen de la lluvia: la lluvia como variable del modelo, el control de franjas
   horarias con la previsión de AEMET y el selector de episodio o escenario. Con un solo episodio la lluvia no se puede
   aprender, así que necesitan el punto anterior.
-- Verificar las licencias de IGME, SNCZI, PATRICOVA y de los datos de la GVA (la etiqueta depende de la huella de la
-  GVA).
 
 ## 3. Guía de ejecución local
 
@@ -276,8 +274,7 @@ docs/
 ## 9. Limitaciones actuales
 
 - **Bugs:** no se han detectado errores en la aplicación ni en los tests.
-- **Partes incompletas:** faltan las funciones de la Fase 1 que dependen de la lluvia (apartado 2) y verificar
-  algunas licencias de datos.
+- **Partes incompletas:** faltan las funciones de la Fase 1 que dependen de la lluvia (apartado 2).
 - **Un solo episodio:** el modelo aprende de la DANA de 2024. Es un mapa de susceptibilidad aprendido de esa DANA, no
   una predicción de qué pasaría con otra lluvia.
 - **No generaliza a otra cuenca:** en la Ribera su ROC-AUC es 0,59 y PATRICOVA y el SNCZI funcionan mucho mejor. La
@@ -306,5 +303,5 @@ docs/
 - [x] README actualizado con requisitos y comandos
 - [x] Dependencias con versiones fijadas y `.env.example` sin secretos
 - [x] Tests automáticos (33) y CI
-- [x] Datos referenciados con fuente y licencia (docs/DATOS.md; algunas licencias, por verificar)
+- [x] Datos referenciados con fuente y licencia (docs/DATOS.md, todas comprobadas)
 - [x] Capturas de front, backend y flujo completo

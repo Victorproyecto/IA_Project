@@ -225,8 +225,6 @@ inundados y que el terreno por sí solo no distingue. La lista completa está en
 
 ## 5. Pendiente
 
-- **Licencias de los datos:** por verificar las del IGME (GEODE 50), el SNCZI, PATRICOVA y los datos de la GVA (la
-  etiqueta depende de la huella).
 - **F1 con poco margen:** 0,722 frente a 0,70 con bloques de 1 km; con bloques de 3 km, 0,634, igual que sin la altura
   sobre el cauce (apartado 2.5). El F1 hay que leerlo frente a la referencia trivial (0,38) y el ROC-AUC (0,92) no
   depende de la proporción de inundadas.
