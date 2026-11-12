@@ -25,10 +25,11 @@
 - Entrenamiento de 2 modelos con validación cruzada por bloques espaciales de 1 km, comparación con PATRICOVA y el
   SNCZI, prueba externa en la Ribera (otra cuenca), comprobación con calados de campo, ficha del modelo y
   predicciones.
-- Aplicación: mapa de celdas de 100 m con JavaScript (MapLibre), capa de lo inundado en la DANA, buscador con
-  sugerencias de municipios, barrios, calles y direcciones, ficha de celda explicada, tabla accesible y ficha del
-  modelo.
-- 33 tests automáticos (también en Windows), Docker y CI.
+- Aplicación: mapa de celdas de 100 m con JavaScript (MapLibre) y, a su lado, la ficha de la celda pulsada (nivel,
+  posición en el área, terreno, mapas oficiales y lo observado en la DANA); buscador con sugerencias de municipios,
+  barrios, calles y direcciones; capas opcionales del límite del área y de lo inundado en la DANA; tabla accesible
+  con descarga en CSV; ficha del modelo; tema claro y oscuro y números en formato español.
+- 34 tests automáticos (también en Windows), Docker y CI.
 
 **Parcial**
 
@@ -44,7 +45,7 @@
   y el SNCZI alcanzan 0,80 y 0,78. Con un solo episodio, el modelo aprende cómo se inundó cada zona en 2024, no
   reglas que se trasladen a otra.
 - En la CI se saltan los tests que necesitan datos, porque `data/` no se versiona. En local, con los datos, pasan los
-  33.
+  34.
 
 **Cambio de alcance respecto a la Fase 1**
 
@@ -86,19 +87,23 @@ pasos están en el README.
 
 ## 4. Evidencias funcionales
 
-Capturas de la aplicación en local (http://localhost:8501) y de la terminal, con el código de esta versión. En las de
-terminal se omiten los avisos de las librerías.
+Capturas de la aplicación en local (http://localhost:8501) y de la terminal, con el código de esta versión. Las de
+terminal muestran la salida real de cada comando, tomada de su registro, sin los avisos de las librerías.
+
+Capturas a 1920 × 1080 en tema claro.
 
 **Front funcionando: mapa de susceptibilidad.** Cada color es una celda de 100 m, en València, L'Horta Sud y L'Horta
-Oest.
+Oest. A la derecha, la leyenda con el número de celdas de cada nivel.
 
 ![Mapa de celdas](capturas/01_front_mapa.png)
 
-**Front: detalle de la zona cero.** Paiporta, Sedaví y Benetússer al acercar el mapa.
+**Front: detalle de la zona cero.** Massanassa y Catarroja al acercar el mapa: cada cuadrado es una celda de 100 m.
+La línea gris es el límite entre València y L'Horta Sud (capa opcional).
 
 ![Celdas de 100 m](capturas/09_front_celdas_100m.png)
 
-**Front: capa de lo inundado en la DANA** (Copernicus EMS y huella oficial de la GVA)
+**Front: capa de lo inundado en la DANA** (Copernicus EMS y huella oficial de la GVA), en morado según la gravedad,
+para compararla con el mapa de susceptibilidad.
 
 ![Capa de la DANA](capturas/02_front_capa_dana.png)
 
@@ -107,8 +112,9 @@ Oest.
 
 ![Sugerencias del buscador](capturas/10_front_buscador_sugerencias.png)
 
-**Backend activo: búsqueda de un municipio y detalle de la celda.** El frontend pide a `services.py` la celda, su
-nivel, la posición relativa, el cauce más cercano, las variables y lo observado con su fuente. Las funciones del
+**Backend activo: búsqueda de un municipio y ficha de la celda.** El frontend pide a `services.py` la celda, su
+nivel, la posición relativa, el terreno, los mapas oficiales y lo observado con su fuente, y la ficha aparece junto al
+mapa. Las funciones del
 backend también las comprueba `tests/test_backend.py` (captura de pytest en el apartado 7).
 
 ![Búsqueda y detalle](capturas/03_front_busqueda_detalle.png)
@@ -130,18 +136,19 @@ Ribera, referencia trivial y comprobación con calados de campo.
 
 ![train](capturas/07_terminal_train.png)
 
+**Front: tema oscuro.** El botón de la esquina superior derecha cambia entre tema claro y oscuro; el mapa de fondo se
+oscurece con el tema.
+
+![Tema oscuro](capturas/11_front_tema_oscuro.png)
+
 ## 5. Arquitectura implementada
 
-```
-data/raw ─ingest─► data/preparados ─run─► data/procesados ─train─► data/modelos
-                                                                           │
-                               frontend (Streamlit) ◄── backend (services.py) ◄┘
-```
+![Arquitectura implementada](arquitectura.png)
 
 - **Pipeline por lotes:** se ejecuta una vez y deja los resultados en Parquet / GeoParquet. No hay base de datos.
 - **Backend:** módulo Python que lee esos resultados. El frontend solo accede a los datos a través de él.
-- **Frontend:** Streamlit, en el mismo proceso que el backend, con dos componentes JavaScript propios: el mapa de
-  celdas (MapLibre GL JS) y el buscador con sugerencias de direcciones (CartoCiudad, del IGN).
+- **Frontend:** Streamlit, en el mismo proceso que el backend, con tres componentes JavaScript propios: el mapa de
+  celdas (MapLibre GL JS), el buscador con sugerencias de direcciones (CartoCiudad, del IGN) y el botón de tema.
 
 **Respecto al diseño de la Fase 1.** Se mantienen las capas del diseño: datos en Parquet / GeoParquet sin servidor de
 base de datos, pipeline, modelo, una capa de acceso a datos que separa la aplicación del almacenamiento y la
@@ -153,7 +160,7 @@ aplicación en Streamlit, todo en Python y en una imagen Docker con `data/` como
   fuentes piden cuenta (Copernicus Land) o se descargan desde visores y servicios WFS.
 - La imagen Docker tiene cuatro puntos de entrada (`ingest`, `pipeline`, `train` y `app`) más uno para los tests, en
   lugar de tres.
-- El mapa y el buscador son componentes JavaScript propios dentro de Streamlit.
+- El mapa, el buscador y el botón de tema son componentes JavaScript propios dentro de Streamlit.
 - El área (22 municipios en lugar de la ciudad de València), la celda de 100 m en lugar de 250 m y el modelo sin
   lluvia se explican en el apartado 2.
 
@@ -162,6 +169,7 @@ aplicación en Streamlit, todo en Python y en una imagen Docker con `data/` como
 ```
 README.md
 pytest.ini
+.streamlit/config.toml
 .env.example
 .gitignore
 .dockerignore
@@ -186,6 +194,7 @@ src/
     └── components/
         ├── cell_map.js / cell_map.css
         ├── place_search.js / place_search.css
+        ├── theme_toggle.js / theme_toggle.css
         └── __init__.py
 tests/
 ├── conftest.py
@@ -206,6 +215,7 @@ docs/
 ├── ENTREGA_NF3.md
 ├── MEJORAS_MODELO_NF3.md
 ├── modelo_datos.png
+├── arquitectura.png
 ├── capturas/
 └── entregas/
 ```
@@ -215,7 +225,7 @@ docs/
 - **Enlace y versión:** https://github.com/Victorproyecto/IA_Project, tag `nf3-entrega` (rama `main`).
 - **README:** requisitos, configuración y comandos.
 - **Dependencias:** `environment/requirements.txt` con versiones fijadas. `.env.example` sin secretos.
-- **Pruebas:** `python -m pytest` (33 tests, también en Windows, unos 35 s) y CI en `.github/workflows/ci.yml`.
+- **Pruebas:** `python -m pytest` (34 tests, también en Windows, alrededor de 1 min) y CI en `.github/workflows/ci.yml`.
   Resultado:
 
 ![pytest](capturas/08_terminal_pytest.png)
@@ -223,6 +233,11 @@ docs/
   `ingest`, `run` y `train`. `docs/DATOS.md` indica la fuente, la licencia y cómo descargar cada fichero.
 
 ## 8. Explicación por módulo
+
+**Configuración** (`src/config.py`)
+
+- Rutas y nombres de los ficheros, áreas en metros (municipios del piloto por comarca), parámetros del pipeline y del
+  modelo y criterios de éxito de la Fase 1, en un solo sitio.
 
 **Pipeline** (`src/pipeline/`)
 
@@ -247,14 +262,17 @@ docs/
 
 **Backend** (`src/backend/`)
 
-- `services.py`: lectura de zonas y predicciones, cuadrícula compacta para el mapa (un byte por celda), resumen por
-  distrito o municipio y lista de lugares para las sugerencias del buscador.
+- `services.py`: lectura de zonas y predicciones, cuadrícula compacta para el mapa (un byte por celda), límite del
+  área por comarca, resumen por distrito o municipio y lista de lugares para las sugerencias del buscador.
 
 **Frontend** (`src/frontend/`)
 
-- `app.py`: página de Streamlit: ficha de celda explicada, tabla y ficha del modelo, con el aviso de uso responsable.
-- `components/`: el mapa de celdas (MapLibre GL JS, que dibuja cada celda como un cuadrado exacto y resuelve el clic
-  en el navegador) y el buscador con sugerencias (municipios propios y calles de CartoCiudad).
+- `app.py`: página de Streamlit con el aviso de uso responsable y tres pestañas: el mapa con el buscador y la ficha de
+  la celda al lado, la tabla de zonas con descarga en CSV y la ficha del modelo. Los números van en formato español.
+- `components/`: el mapa de celdas (MapLibre GL JS, que dibuja cada celda como un cuadrado exacto, resuelve el clic en
+  el navegador y tiene las capas de susceptibilidad, límite del área y lo inundado en la DANA), el buscador con
+  sugerencias (municipios propios y calles de CartoCiudad) y el botón de tema claro / oscuro.
+- `.streamlit/config.toml`: oculta las opciones de desarrollo de la barra de Streamlit (como el botón "Deploy").
 
 **Tests** (`tests/`)
 
@@ -292,6 +310,11 @@ docs/
   revisando este mismo episodio.
 - **Atajos:** el backend no es un servicio aparte; los umbrales se fijan sobre las mismas predicciones de validación
   que se usan para medir.
+- **Tema oscuro:** Streamlit no permite cambiar el tema desde Python; el botón guarda la elección igual que el menú
+  de ajustes de Streamlit y recarga la página (se pierde la celda seleccionada). Si una versión futura cambiara esa
+  clave, el tema se seguiría pudiendo cambiar desde el menú de ajustes.
+- **Formato de números en la tabla de zonas:** sigue el idioma del navegador (coma decimal en español) para que las
+  columnas sigan siendo ordenables; en el resto de la aplicación la coma decimal es fija.
 - **Conexión:** el navegador necesita internet para el mapa de fondo, la librería del mapa y las sugerencias de
   direcciones.
 - **Tests en la CI:** sin datos en el repositorio, la CI salta los tests que los necesitan.
@@ -302,6 +325,6 @@ docs/
 - [x] Tag exacto indicado en la portada (`nf3-entrega`)
 - [x] README actualizado con requisitos y comandos
 - [x] Dependencias con versiones fijadas y `.env.example` sin secretos
-- [x] Tests automáticos (33) y CI
+- [x] Tests automáticos (34) y CI
 - [x] Datos referenciados con fuente y licencia (docs/DATOS.md, todas comprobadas)
 - [x] Capturas de front, backend y flujo completo

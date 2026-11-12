@@ -19,7 +19,7 @@ qué resultados dan y cómo hay que leerlos.
 | Frente a los mapas oficiales en el área | - | F1 0,72 frente a 0,65 (SNCZI T=500) y 0,46 (PATRICOVA) |
 | En otra cuenca que no ha visto (la Ribera) | No se probó | **No generaliza** (ROC-AUC 0,59; PATRICOVA 0,80 y SNCZI 0,78) |
 | Celdas de otros municipios con barrio de València | 344 (error) | 0 |
-| Tests automáticos | 20 (no se ejecutaban en Windows) | **33, todos pasan también en Windows y tardan ~35 s** |
+| Tests automáticos | 20 (no se ejecutaban en Windows) | **34, todos pasan también en Windows y tardan ~1 min** |
 
 En resumen, el producto es un mapa de susceptibilidad aprendido de la DANA de 2024. Cubre la zona más afectada y
 supera a los mapas oficiales dentro del área en que se entrena, pero no es un predictor que funcione en cualquier zona
@@ -70,6 +70,9 @@ ordenador).
 | Buscador con sugerencias: municipios, distritos y barrios del área al instante y, a partir de 3 letras, calles y direcciones de CartoCiudad (IGN), limitadas a los códigos postales del área | Ya no hace falta escribir la dirección exacta; sustituye a Nominatim, cuyas normas no permiten el autocompletado | `components/place_search.js`, `config.py` |
 | Ficha de celda explicada: posición relativa ("más que el X % de las celdas"), qué significa cada nivel, cauce más cercano y su distancia, fuente de lo observado (Copernicus EMS y/o GVA) | | `services.py`, `app.py` |
 | Tabla con municipio, percentil y distancia al cauce; resumen por distrito o municipio | La tabla pesa 3,2 MB en lugar de 5,9 (los textos repetidos van como categorías) | `app.py` |
+| Página reorganizada: buscador encima del mapa (visible también en el móvil), ficha de la celda al lado del mapa, explicación plegada y leyenda con el número de celdas de cada nivel | El mapa y la ficha quedan a la vista sin bajar por la página | `app.py` |
+| Capas opcionales: límite de València, L'Horta Sud y L'Horta Oest y lo inundado en la DANA (en morado según la gravedad). La rueda del ratón solo hace zoom con Ctrl, para no hacerlo sin querer al desplazar la página | Comparar la susceptibilidad con lo que pasó y ver el área cubierta | `services.py`, `components/cell_map.js`, `config.py` |
+| Tema claro y oscuro con un botón, números en formato español y nombres en español en todas las tablas | Legibilidad | `app.py`, `components/theme_toggle.js` |
 | Pestaña del modelo: comparativa con PATRICOVA y el SNCZI, referencia trivial, prueba externa en la Ribera, comprobación con calados, importancia y limitaciones | | `app.py` |
 
 ### 2.4 Correcciones y repositorio
@@ -242,5 +245,5 @@ python -m src.pipeline.ingest   # data/raw → data/preparados (huella de la GVA
 python -m src.pipeline.run      # celdas de 100 m, variables y etiqueta (~20 min)
 python -m src.pipeline.train    # validación, prueba externa, ficha del modelo y predicciones (~1 min)
 streamlit run src/frontend/app.py
-python -m pytest                # 33 tests (~35 s)
+python -m pytest                # 34 tests (~1 min)
 ```

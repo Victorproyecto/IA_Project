@@ -7,6 +7,13 @@
   cursor: pointer;
 }
 
+/* El dibujo ocupa siempre el recuadro entero, aunque el navegador cambie su tamaño antes de que MapLibre se reajuste */
+.dana-map .maplibregl-canvas-container,
+.dana-map .maplibregl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* Control de capas: una casilla por capa para mostrarla u ocultarla */
 .dana-layers {
   padding: 6px 10px;
@@ -19,6 +26,11 @@
   display: block;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.dana-dark .dana-layers {
+  color: #fafafa;
+  background: #262730;
 }
 
 .dana-layers input {

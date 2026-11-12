@@ -6,7 +6,9 @@
 //   grid: {origin: [x0, y0], cell_m, rows, cols, utm_zone, codes (base64)}
 //         codes[row * cols + col] = nivel (0 = sin celda, 1 Bajo, 2 Medio, 3 Alto) + 4 * gravedad (0 no inundada,
 //         1 Leve, 2 Moderada, 3 Grave). row 0 es la fila sur. zone_id = row * cols + col + 1 (como en grid.py)
-//   colors, opacity: color y opacidad de cada nivel; observed_colors: color de cada gravedad
+//   colors, opacity: color y opacidad de cada nivel; observed_colors, observed_opacity: los de cada gravedad
+//   area: GeoJSON (líneas, WGS84) con el límite del área piloto, una línea por comarca
+//   dark: tema oscuro (el mapa de fondo se oscurece y el límite se dibuja claro)
 //   selected: zone_id de la celda seleccionada (o null)
 //   view: {id, center: [lat, lon], zoom}: el mapa solo se mueve cuando cambia view.id (búsqueda), no al pulsar
 //   height: alto del mapa en píxeles
@@ -15,23 +17,32 @@
 const MAPLIBRE_URL = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl";
 const LEVELS = ["Bajo", "Medio", "Alto"];
 const SEVERITIES = ["Leve", "Moderada", "Grave"];
-const OSM_STYLE = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+// En tema oscuro se invierte el brillo del mapa de OpenStreetMap y se gira el tono 180° para que el agua siga siendo
+// azul y la vegetación verde: un mapa de fondo oscuro sin depender de otro proveedor de teselas
+const DARK_RASTER = { "raster-brightness-min": 1, "raster-brightness-max": 0, "raster-hue-rotate": 180,
+  "raster-saturation": -0.3, "raster-contrast": -0.1 };
+
+function baseStyle(dark) {
+  return {
+    version: 8,
+    sources: {
+      osm: {
+        type: "raster",
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      },
     },
-  },
-  layers: [{ id: "osm", type: "raster", source: "osm" }],
-};
+    layers: [{ id: "osm", type: "raster", source: "osm", paint: dark ? DARK_RASTER : {} }],
+  };
+}
+// Cada casilla del control de capas muestra u oculta una o varias capas del mapa
 const LAYERS = [
-  { id: "cells", label: "Susceptibilidad (celdas)", visible: true },
-  { id: "observed", label: "Inundado en la DANA (observado)", visible: false },
-  { id: "selected", label: "Celda seleccionada", visible: true },
+  { ids: ["cells"], label: "Susceptibilidad (celdas)", visible: true },
+  { ids: ["area"], label: "Límite de València, L'Horta Sud y L'Horta Oest", visible: false },
+  { ids: ["observed"], label: "Inundado en la DANA (observado)", visible: false },
+  { ids: ["selected"], label: "Celda seleccionada", visible: true },
 ];
 
 // --- Carga de MapLibre (una sola vez por página) ---------------------------------------------------------------
@@ -153,41 +164,24 @@ function cellFeatures(g) {
   };
 }
 
-// Contorno de lo inundado por gravedad: los bordes entre una celda de esa gravedad y una vecina que no lo es
-function observedFeatures(g) {
-  const severity = (r, c) => (r < 0 || c < 0 || r >= g.rows || c >= g.cols ? 0 : g.codes[r * g.cols + c] >> 2);
-  const features = [];
-  for (let s = 1; s <= SEVERITIES.length; s++) {
-    const lines = [];
-    // Bordes horizontales (entre la fila r - 1 y la r), unidos en tramos
-    for (let r = 0; r <= g.rows; r++) {
-      let start = -1;
-      for (let c = 0; c <= g.cols; c++) {
-        const edge = c < g.cols && (severity(r - 1, c) === s) !== (severity(r, c) === s);
-        if (edge && start < 0) start = c;
-        if (!edge && start >= 0) {
-          lines.push([g.corner(r, start), g.corner(r, c)]);
-          start = -1;
-        }
+// Celdas inundadas en la DANA por gravedad, un cuadrado por celda
+function observedCellFeatures(g) {
+  const polygons = SEVERITIES.map(() => []);
+  for (let r = 0; r < g.rows; r++) {
+    for (let c = 0; c < g.cols; c++) {
+      const severity = g.codes[r * g.cols + c] >> 2;
+      if (severity > 0) {
+        polygons[severity - 1].push([[g.corner(r, c), g.corner(r, c + 1), g.corner(r + 1, c + 1), g.corner(r + 1, c),
+          g.corner(r, c)]]);
       }
     }
-    // Bordes verticales (entre la columna c - 1 y la c)
-    for (let c = 0; c <= g.cols; c++) {
-      let start = -1;
-      for (let r = 0; r <= g.rows; r++) {
-        const edge = r < g.rows && (severity(r, c - 1) === s) !== (severity(r, c) === s);
-        if (edge && start < 0) start = r;
-        if (!edge && start >= 0) {
-          lines.push([g.corner(start, c), g.corner(r, c)]);
-          start = -1;
-        }
-      }
-    }
-    features.push({
-      type: "Feature", properties: { severity: SEVERITIES[s - 1] }, geometry: { type: "MultiLineString", coordinates: lines },
-    });
   }
-  return { type: "FeatureCollection", features };
+  return {
+    type: "FeatureCollection",
+    features: polygons.map((coordinates, i) => ({
+      type: "Feature", properties: { severity: SEVERITIES[i] }, geometry: { type: "MultiPolygon", coordinates },
+    })),
+  };
 }
 
 function selectedFeature(g, zoneId) {
@@ -214,7 +208,8 @@ function matchExpression(property, values, fallback) {
 
 function addLayers(map, g, data) {
   map.addSource("cells", { type: "geojson", data: cellFeatures(g) });
-  map.addSource("observed", { type: "geojson", data: observedFeatures(g) });
+  map.addSource("area", { type: "geojson", data: data.area ?? { type: "FeatureCollection", features: [] } });
+  map.addSource("observed", { type: "geojson", data: observedCellFeatures(g) });
   map.addSource("selected", { type: "geojson", data: selectedFeature(g, data.selected) });
   map.addLayer({
     id: "cells", type: "fill", source: "cells",
@@ -222,11 +217,17 @@ function addLayers(map, g, data) {
       "fill-opacity": matchExpression("level", data.opacity, 0), "fill-antialias": false },
   });
   map.addLayer({
-    id: "observed", type: "line", source: "observed", layout: { visibility: "none" },
-    paint: { "line-color": matchExpression("severity", data.observed_colors, "#000000"), "line-width": 1.5,
-      "line-dasharray": [3, 2] },
+    id: "area", type: "line", source: "area", layout: { visibility: "none" },
+    paint: { "line-color": data.dark ? "#E0E0E0" : "#333333", "line-width": 1, "line-opacity": 0.8 },
   });
-  map.addLayer({ id: "selected", type: "line", source: "selected", paint: { "line-color": "#000000", "line-width": 3 } });
+  // Lo inundado, celda a celda con el color de su gravedad, encima de la susceptibilidad
+  map.addLayer({
+    id: "observed", type: "fill", source: "observed", layout: { visibility: "none" },
+    paint: { "fill-color": matchExpression("severity", data.observed_colors, "#000000"),
+      "fill-opacity": matchExpression("severity", data.observed_opacity, 0), "fill-antialias": false },
+  });
+  map.addLayer({ id: "selected", type: "line", source: "selected",
+    paint: { "line-color": data.dark ? "#FFFFFF" : "#000000", "line-width": 3 } });
 }
 
 function layerControl(map) {
@@ -237,7 +238,9 @@ function layerControl(map) {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = layer.visible;
-    input.onchange = () => map.setLayoutProperty(layer.id, "visibility", input.checked ? "visible" : "none");
+    input.onchange = () => {
+      for (const id of layer.ids) map.setLayoutProperty(id, "visibility", input.checked ? "visible" : "none");
+    };
     label.append(input, ` ${layer.label}`);
     box.appendChild(label);
   }
@@ -252,15 +255,20 @@ export default async function ({ data, parentElement, setTriggerValue }) {
     parentElement.appendChild(root);
   }
   root.style.height = `${data.height}px`;
+  root.classList.toggle("dana-dark", Boolean(data.dark));
   const state = (root.__dana ??= {});
   // Streamlit solo guarda la última función de limpieza devuelta: siempre la misma, que quita el mapa actual
   state.cleanup ??= () => {
     state.map?.remove();
     state.map = undefined;
   };
+  // MapLibre mide el recuadro una sola vez: si luego cambia de tamaño (columnas que se recolocan, ventana, panel de
+  // desarrollo...), el dibujo se quedaría con el tamaño viejo y la escala y el crédito, descolocados
+  state.resizer ??= new ResizeObserver(() => state.map?.resize());
+  state.resizer.observe(root);
 
-  // Misma cuadrícula: solo se actualizan la celda seleccionada y, si hay una búsqueda nueva, la vista
-  if (state.map && state.gridCodes === data.grid.codes) {
+  // Misma cuadrícula y mismo tema: solo se actualizan la celda seleccionada y, si hay una búsqueda nueva, la vista
+  if (state.map && state.gridCodes === data.grid.codes && state.dark === data.dark) {
     state.data = data;
     state.map.getSource("selected")?.setData(selectedFeature(state.grid, data.selected));
     if (data.view.id !== state.viewId) {
@@ -274,13 +282,21 @@ export default async function ({ data, parentElement, setTriggerValue }) {
   state.cleanup();
   root.removeAttribute("data-map-ready");
   const grid = decodeGrid(data.grid);
-  Object.assign(state, { grid, data, gridCodes: data.grid.codes, viewId: data.view.id });
+  Object.assign(state, { grid, data, gridCodes: data.grid.codes, dark: data.dark, viewId: data.view.id });
   const map = new maplibregl.Map({
     container: root,
-    style: OSM_STYLE,
+    style: baseStyle(data.dark),
     center: [data.view.center[1], data.view.center[0]],
     zoom: data.view.zoom,
     attributionControl: { compact: false },
+    // La rueda solo hace zoom con Ctrl (o Cmd): así, al bajar por la página con el cursor encima, no se hace zoom sin
+    // querer. En el móvil, un dedo desplaza la página y dos mueven el mapa
+    cooperativeGestures: true,
+    locale: {
+      "CooperativeGesturesHandler.WindowsHelpText": "Usa Ctrl + rueda del ratón para hacer zoom en el mapa",
+      "CooperativeGesturesHandler.MacHelpText": "Usa ⌘ + rueda del ratón para hacer zoom en el mapa",
+      "CooperativeGesturesHandler.MobileHelpText": "Usa dos dedos para mover el mapa",
+    },
   });
   state.map = map;
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");

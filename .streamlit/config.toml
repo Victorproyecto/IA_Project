@@ -1,0 +1,6 @@
+# Configuración de Streamlit (se lee al ejecutar "streamlit run" desde la raíz del repositorio y en Docker)
+
+[client]
+# Oculta las opciones de desarrollo de la barra superior (botón "Deploy" a Streamlit Community Cloud, "Rerun",
+# "Clear cache"...). Se mantienen los ajustes, donde también se puede cambiar el tema
+toolbarMode = "viewer"

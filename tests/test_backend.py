@@ -9,6 +9,14 @@ def test_risk_map_has_one_row_per_zone(built_data):
     assert risk_map["observed"].notna().all()
 
 
+def test_area_outline_has_one_line_per_comarca(built_data):
+    from src.config import PILOT_COMARCAS
+
+    outline = services.get_area_outline()
+    assert {feature["properties"]["comarca"] for feature in outline["features"]} == set(PILOT_COMARCAS)
+    assert all(feature["geometry"]["type"].endswith("LineString") for feature in outline["features"])
+
+
 def test_find_zone_inside_and_outside_pilot(built_data):
     zone = services.get_zones_web().iloc[0]
     center = zone.geometry.centroid

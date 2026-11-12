@@ -16,14 +16,16 @@ from pyproj import CRS as ProjCRS
 from shapely.geometry import Point
 
 from src.config import (
-    CELL_SIZE_M, CRS, CRS_WEB, DATA_SOURCES_FILE, EPISODE_NAME, FLOOD_EVENTS_FILE, MODEL_CARD_FILE, PILOT_EXTENT,
-    PREDICTIONS_DIR, RISK_LEVELS, SEVERITY_ORDER, SNCZI_COLUMN, ZONES_FILE,
+    CELL_SIZE_M, CRS, CRS_WEB, DATA_SOURCES_FILE, EPISODE_NAME, FLOOD_EVENTS_FILE, MODEL_CARD_FILE, PILOT_COMARCAS,
+    PILOT_EXTENT, PREDICTIONS_DIR, PREPARED_DIR, PREPARED_FILES, RISK_LEVELS, SEVERITY_ORDER, SNCZI_COLUMN, ZONES_FILE,
 )
 from src.pipeline.features import area_unit
 
 # Cuadrícula del mapa: un byte por celda. Bits 0-1: nivel de riesgo (0 sin celda, 1 Bajo, 2 Medio, 3 Alto);
 # bits 2-3: gravedad observada en la DANA (0 no inundada, 1 Leve, 2 Moderada, 3 Grave)
 SEVERITY_SHIFT = 2
+# El límite del área se simplifica a esta tolerancia: de sobra para verlo sobre celdas de 100 m, y pesa ~40 KB
+OUTLINE_SIMPLIFY_M = 20
 
 
 @lru_cache
@@ -104,6 +106,20 @@ def get_map_grid() -> dict:
     codes[cell] = levels.reindex(zones["zone_id"]).to_numpy().astype(np.uint8) | (severity.to_numpy() << SEVERITY_SHIFT)
     return {"origin": [float(x0), float(y0)], "cell_m": CELL_SIZE_M, "rows": rows, "cols": cols,
             "utm_zone": int(utm_zone[:-1]), "codes": base64.b64encode(codes.tobytes()).decode("ascii")}
+
+
+def get_area_outline() -> dict:
+    """Límite de València, L'Horta Sud y L'Horta Oest para dibujarlo sobre el mapa: GeoJSON en WGS84 con una línea por
+    comarca (propiedad "comarca").
+
+    Sale de los límites municipales del IGN que prepara la ingesta (data/preparados), unidos por comarca
+    (config.PILOT_COMARCAS)."""
+    municipalities = gpd.read_file(PREPARED_DIR / PREPARED_FILES["municipalities"]).to_crs(CRS)
+    comarca_of = {name: comarca for comarca, members in PILOT_COMARCAS.items() for name in members}
+    area = municipalities[municipalities["municipio"].isin(comarca_of)]
+    area = area.assign(comarca=area["municipio"].map(comarca_of)).dissolve("comarca").reset_index()
+    area = area[["comarca", "geometry"]].set_geometry(area.simplify(OUTLINE_SIMPLIFY_M).boundary)
+    return json.loads(area.to_crs(CRS_WEB).to_json())
 
 
 def get_zone_history(zone_id: int) -> pd.DataFrame:

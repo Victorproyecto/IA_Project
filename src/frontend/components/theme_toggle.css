@@ -1,0 +1,15 @@
+/* Botón de tema: discreto, con el borde y el texto del tema activo */
+.dana-theme {
+  float: right;
+  padding: 4px 12px;
+  font: 14px var(--st-font, "Source Sans Pro", sans-serif);
+  color: inherit;
+  background: transparent;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.dana-theme:hover {
+  border-color: currentColor;
+}

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="140" viewBox="0 0 560 140" role="img" aria-label="DANA Predictor">
+  <title>DANA Predictor</title>
+  <!-- Icono: celdas de 100 m con los colores de riesgo del mapa (Bajo, Medio, Alto) y una ola de agua encima -->
+  <defs>
+    <clipPath id="tile"><rect x="10" y="10" width="120" height="120" rx="22"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect x="10" y="10" width="40" height="40" fill="#2C7BB6"/>
+    <rect x="50" y="10" width="40" height="40" fill="#2C7BB6"/>
+    <rect x="90" y="10" width="40" height="40" fill="#E66101"/>
+    <rect x="10" y="50" width="40" height="40" fill="#2C7BB6"/>
+    <rect x="50" y="50" width="40" height="40" fill="#E66101"/>
+    <rect x="90" y="50" width="40" height="40" fill="#B2182B"/>
+    <rect x="10" y="90" width="40" height="40" fill="#E66101"/>
+    <rect x="50" y="90" width="40" height="40" fill="#B2182B"/>
+    <rect x="90" y="90" width="40" height="40" fill="#B2182B"/>
+    <!-- Líneas de la cuadrícula -->
+    <path d="M50 10V130M90 10V130M10 50H130M10 90H130" stroke="#FFFFFF" stroke-width="3" opacity="0.85"/>
+    <!-- Ola -->
+    <path d="M10 84 C 30 64, 50 64, 70 84 S 110 104, 130 84 L 130 130 L 10 130 Z" fill="#FFFFFF" opacity="0.35"/>
+    <path d="M10 84 C 30 64, 50 64, 70 84 S 110 104, 130 84" fill="none" stroke="#FFFFFF" stroke-width="7"
+          stroke-linecap="round"/>
+  </g>
+  <!-- Nombre -->
+  <text x="156" y="78" font-family="'Cascadia Code', Consolas, monospace" font-size="46" font-weight="700"
+        fill="#1F2A36">DANA PREDICTOR</text>
+  <text x="158" y="110" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#4A5563">Mapa de riesgo de
+    inundación urbana</text>
+</svg>

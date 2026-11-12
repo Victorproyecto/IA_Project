@@ -90,7 +90,7 @@ src/
 │   └── services.py        # lectura de resultados para el frontend (también la cuadrícula del mapa)
 └── frontend/
     ├── app.py             # aplicación Streamlit
-    └── components/        # componentes JavaScript: mapa de celdas y buscador con sugerencias
+    └── components/        # componentes JavaScript: mapa de celdas, buscador con sugerencias y botón de tema
 tests/                     # pytest: unitarios, datos, modelo, backend y frontend
 environment/               # requirements.txt, Dockerfile, docker-compose.yml, entrypoint.sh
 docs/

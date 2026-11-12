@@ -50,14 +50,17 @@ CRS_WEB = "EPSG:4326"
 # Municipios del área piloto: València y las comarcas de L'Horta Sud y L'Horta Oest (delimitación habitual; las
 # comarcas no son una división administrativa oficial), es decir, la cuenca del Poyo y lo que inundó. La ciudad apenas
 # se inundó: el agua llegó por el Poyo. Se cubren los términos municipales enteros.
-PILOT_MUNICIPALITIES = [
-    "València",
-    # L'Horta Sud
-    "Albal", "Alcàsser", "Alfafar", "Benetússer", "Beniparrell", "Catarroja", "Llocnou de la Corona", "Massanassa",
-    "Paiporta", "Picassent", "Sedaví", "Silla",
-    # L'Horta Oest
-    "Alaquàs", "Aldaia", "Manises", "Mislata", "Paterna", "Picanya", "Quart de Poblet", "Torrent", "Xirivella",
-]
+PILOT_COMARCAS = {
+    "València": ["València"],
+    "L'Horta Sud": [
+        "Albal", "Alcàsser", "Alfafar", "Benetússer", "Beniparrell", "Catarroja", "Llocnou de la Corona", "Massanassa",
+        "Paiporta", "Picassent", "Sedaví", "Silla",
+    ],
+    "L'Horta Oest": [
+        "Alaquàs", "Aldaia", "Manises", "Mislata", "Paterna", "Picanya", "Quart de Poblet", "Torrent", "Xirivella",
+    ],
+}
+PILOT_MUNICIPALITIES = [municipality for members in PILOT_COMARCAS.values() for municipality in members]
 # Rectángulo en ETRS89 / UTM 30N (x_min, y_min, x_max, y_max) que contiene esos municipios enteros; dentro solo se quedan
 # sus celdas. Coordenadas múltiplos de 100 y 250 m para que ningún tamaño de celda recorte el borde. Las áreas solo se
 # definen aquí, en metros: lo que necesita grados (geocodificación, recortes) se calcula a partir de ellas.
