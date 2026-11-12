@@ -1,0 +1,27 @@
+/* Mapa de celdas. Sin aislar estilos (MapLibre necesita su CSS global): todas las clases propias empiezan por dana- */
+.dana-map {
+  width: 100%;
+}
+
+.dana-map .maplibregl-canvas {
+  cursor: pointer;
+}
+
+/* Control de capas: una casilla por capa para mostrarla u ocultarla */
+.dana-layers {
+  padding: 6px 10px;
+  font: 14px/1.7 var(--st-font, "Source Sans Pro", sans-serif);
+  color: #333333;
+  background: #ffffff;
+}
+
+.dana-layers label {
+  display: block;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dana-layers input {
+  margin: 0 4px 0 0;
+  vertical-align: middle;
+}
