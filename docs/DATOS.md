@@ -5,7 +5,7 @@
 ```
 data/
 ├── raw/          originales de cada fuente, tal como se descargan (1,7 GB; zip en Google Drive)
-├── preparados/   un fichero por fuente, recortado al área de estudio (lo genera ingest, ~95 MB)
+├── preparados/   un fichero por fuente, recortado al área de estudio (lo genera ingest, ~113 MB)
 ├── procesados/   celdas, etiquetas, tabla de entrenamiento y predicciones (lo genera run y train)
 └── modelos/      modelo entrenado, ficha del modelo y registro de experimentos (lo genera train)
 ```
@@ -32,7 +32,7 @@ raw ──ingest──► preparados ──run──► procesados ──train�
 
 ### Ficheros preparados
 
-- Están recortados al área de estudio (València, L'Horta Sud, L'Horta Oest y la Ribera) y ocupan ~95 MB en total.
+- Están recortados al área de estudio (València, L'Horta Sud, L'Horta Oest y la Ribera) y ocupan ~113 MB en total.
 - El MDT se guarda en **centímetros enteros** (con el factor de escala 0,01 dentro del fichero, que el pipeline aplica
   al leer): en metros con decimales ocuparía 146 MB. No se pierde nada por encima de 1 cm, muy por debajo de la
   precisión del propio MDT (decímetros). El mar (altitud 0 exacta) se conserva tal cual.
@@ -46,6 +46,7 @@ raw ──ingest──► preparados ──run──► procesados ──train�
 | `zonas_inundadas_dana2024.gpkg` | **Etiqueta:** zonas inundadas en la DANA por gravedad y fuente | Copernicus EMS (EMSR773) + huella oficial de la GVA | Copernicus data policy; GVA por verificar |
 | `calados_campo_dana2024.gpkg` | Calado medido en campo tras la DANA (no se usa para entrenar) | GVA / ICV | Por verificar |
 | `cauces_principales.gpkg` | Cauces con nombre y en superficie | IGN, Hidrografía de España (INSPIRE HY) | CC BY 4.0 |
+| `altura_sobre_cauce.tif` | Altura sobre el cauce, HAND (cm, píxel de 10 m) | Calculada en la ingesta con `mdt_altitud.tif` y `cauces_principales.gpkg` | La de sus fuentes (CC BY 4.0) |
 | `geologia_igme.gpkg` | Unidades cuaternarias agrupadas (aluvial, marjal, abanico, glacis) | IGME, GEODE 50 | Por verificar |
 | `suelo_no_urbano_clc2018.gpkg` | Arrozales y agua permanente (esas celdas se excluyen) | Copernicus Land, Corine Land Cover 2018 | Copernicus data policy |
 | `municipios.gpkg` | Términos municipales | IGN / CNIG | CC BY 4.0 |
@@ -101,6 +102,7 @@ a las celdas del borde); los rásteres no lo necesitan, porque solo se leen dent
 | `zonas_inundadas_dana2024.gpkg` | **Etiqueta.** Copernicus EMS: zona inundada = agua o rastro de agua (`observedEvent`); gravedad por calado (`floodDepth`): < 0,5 m Leve, 0,5-1 m Moderada, > 1 m Grave; lo que no tiene calado cuenta como Leve. **Huella de la GVA:** se añade lo que no marca Copernicus (sobre todo cascos urbanos, donde el satélite no ve el agua entre edificios), como Leve. Cada polígono lleva su fuente (`source`) |
 | `calados_campo_dana2024.gpkg` | Puntos con calado medido (`altura_agua_m` → `depth_m`). No se usan para entrenar: dan gravedad a las celdas que solo marca la GVA y sirven para comprobar el modelo |
 | `cauces_principales.gpkg` | El nuevo cauce del Turia (*Canal del Riu Túria*) y los cursos naturales **con nombre y en superficie**. Se excluyen acequias, canales de riego, tramos subterráneos, cursos sin nombre (desagües menores) y el antiguo cauce del Turia (no lleva agua desde que el río se desvió tras la riada de 1957) |
+| `altura_sobre_cauce.tif` | **Altura sobre el cauce (HAND):** el MDT se promedia a 10 m y se rebajan 10 m los cauces principales y el mar, para que el agua siga el trazado del IGN. `pysheds` rellena las depresiones, resuelve las zonas planas y calcula la dirección del flujo (D8). Cada píxel se sigue cuesta abajo hasta su desagüe (cauce, mar, punto sin salida como la Albufera o borde del MDT) y se guarda su altura sobre él, en centímetros enteros como el MDT. Tarda unos 30 s |
 | `geologia_igme.gpkg` | Agrupa las unidades por palabras de su descripción (`config.GEOLOGY_GROUPS`); el resto no se guarda |
 | `suelo_no_urbano_clc2018.gpkg` | Se queda con los códigos de arrozal y agua permanente (`config.NON_URBAN_CLC_CODES`) |
 | `municipios.gpkg` | Recintos municipales (`NAMEUNIT` → `municipio`) |

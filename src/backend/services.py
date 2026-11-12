@@ -58,7 +58,7 @@ def get_predictions(model_version: str | None = None) -> pd.DataFrame:
 def get_risk_map() -> gpd.GeoDataFrame:
     """Zonas en WGS84 unidas a su predicción y a lo observado en la DANA, lista para pintar."""
     columns = ["zone_id", "name", "municipality", "district", "neighbourhood", "altitude_avg", "slope_avg",
-               "imperviousness", "geology", "patricova_level", SNCZI_COLUMN, "dist_channel_km", "channel_name", "geometry"]
+               "imperviousness", "geology", "patricova_level", SNCZI_COLUMN, "dist_channel_km", "height_above_channel_m", "channel_name", "geometry"]
     events = pd.read_parquet(FLOOD_EVENTS_FILE)[["zone_id", "flooded_fraction", "severity"]]
     data = get_zones_web()[columns].merge(get_predictions(), on="zone_id").merge(events, on="zone_id", how="left")
     data["observed"] = data["severity"].fillna("No inundada")

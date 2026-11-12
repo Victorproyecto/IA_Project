@@ -15,12 +15,14 @@ Entrada (data/raw/, ver docs/DATOS.md):
   igme_geode50/geode50.geojson                geología continua 1:50.000 del IGME (GEODE 50)
   snczi/laminasPB-q500.zip                    zona inundable del SNCZI (MITECO), T=500 años
 
-Salida (data/preparados/): un fichero por fuente, con los nombres de config.PREPARED_FILES.
+Salida (data/preparados/): un fichero por fuente, con los nombres de config.PREPARED_FILES, más la altura sobre el
+cauce (HAND), que se calcula a partir del MDT y los cauces ya preparados.
 
 Todo se recorta al rectángulo que contiene el área piloto y la Ribera (prueba externa), con un margen.
 """
 
 import logging
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -29,6 +31,9 @@ import numpy as np
 import pandas as pd
 import rasterio
 import shapely
+from pysheds.grid import Grid
+from rasterio.enums import Resampling
+from rasterio.features import rasterize
 from rasterio.merge import merge
 from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
@@ -52,6 +57,13 @@ CHANNEL_MARGIN_M = 5000
 # La huella de la GVA reparada puede diferir como mucho un 1 % de la superficie que declara la propia GVA
 GVA_AREA_TOLERANCE = 0.01
 M2_PER_HA = 10_000
+# Altura sobre el cauce (HAND): se calcula sobre el MDT remuestreado a 10 m (de sobra para celdas de 100 m, y 4 veces
+# menos píxeles que el de 5 m). Los cauces y el mar se rebajan HAND_BURN_M en el MDT para que el agua siga el trazado del
+# IGN aunque el MDT no marque bien el fondo del cauce (puentes, encauzamientos)
+HAND_RES_M = 10
+HAND_BURN_M = 10
+# Dirección del flujo D8 con la codificación de pysheds: código -> (fila, columna) del píxel vecino
+D8_MOVES = {64: (-1, 0), 128: (-1, 1), 1: (0, 1), 2: (1, 1), 4: (1, 0), 8: (1, -1), 16: (0, -1), 32: (-1, -1)}
 DEPTH_TO_SEVERITY = {
     "Below 0.50": "Leve",
     "0.50 - 1.00": "Moderada",
@@ -218,6 +230,68 @@ def build_channels() -> None:
     channels.clip(box(*_area(margin_m=CHANNEL_MARGIN_M))).to_file(_output("channels"), driver="GPKG")
 
 
+def hand_from_flowdir(flowdir: np.ndarray, dem: np.ndarray, drain: np.ndarray) -> np.ndarray:
+    """Altura de cada píxel sobre el píxel en que acaba su agua siguiendo la dirección del flujo (D8).
+
+    El camino acaba en un píxel de desagüe (drain: cauce o mar), en un punto sin salida (la Albufera, que no está a
+    0 m) o en el borde del MDT por donde sale el agua. Se resuelve saltando de destino en destino: cada paso duplica la
+    distancia recorrida, así que bastan unas decenas de pasos para todo el MDT.
+    """
+    rows, cols = flowdir.shape
+    index = np.arange(rows * cols).reshape(rows, cols)
+    target = index.copy()
+    for code, (dr, dc) in D8_MOVES.items():
+        r, c = np.nonzero(flowdir == code)
+        r2, c2 = r + dr, c + dc
+        inside = (r2 >= 0) & (r2 < rows) & (c2 >= 0) & (c2 < cols)
+        target[r[inside], c[inside]] = r2[inside] * cols + c2[inside]
+    target = target.ravel()
+    target[drain.ravel()] = index.ravel()[drain.ravel()]
+    while not np.array_equal(jumped := target[target], target):
+        target = jumped
+    altitude = dem.ravel()
+    return (altitude - altitude[target]).reshape(rows, cols)
+
+
+def build_hand() -> None:
+    """Altura sobre el cauce (HAND, Height Above Nearest Drainage) a partir del MDT y los cauces ya preparados.
+
+    1. MDT remuestreado a HAND_RES_M (media) con los cauces principales y el mar rebajados HAND_BURN_M.
+    2. pysheds rellena las depresiones, resuelve las zonas planas y calcula la dirección del flujo (D8).
+    3. Cada píxel se sigue cuesta abajo hasta su desagüe y se resta la altitud (sin rebajar) de ese desagüe.
+    Se guarda en centímetros enteros, como el MDT. Puede ser algo negativa en depresiones cerradas (por debajo del
+    punto por donde rebosan).
+    """
+    with rasterio.open(_output("terrain")) as src:
+        shape = (round(src.height * src.res[1] / HAND_RES_M), round(src.width * src.res[0] / HAND_RES_M))
+        raw = src.read(1, out_shape=shape, resampling=Resampling.average, masked=True)
+        dem = (raw.astype(float) * src.scales[0] + src.offsets[0]).filled(np.nan)
+        transform = src.transform * src.transform.scale(src.width / shape[1], src.height / shape[0])
+        profile, nodata = src.profile, src.nodata
+    channels = gpd.read_file(_output("channels")).to_crs(profile["crs"])
+    streams = rasterize(((g, 1) for g in channels.geometry), out_shape=shape, transform=transform, all_touched=True,
+                        dtype="uint8").astype(bool)
+    drain = (streams | (dem == SEA_ALTITUDE_M)) & ~np.isnan(dem)
+    burned = np.where(drain, dem - HAND_BURN_M, dem)
+
+    no_value = -9999.0
+    with tempfile.TemporaryDirectory() as folder:
+        burned_path = Path(folder) / "mdt_rebajado.tif"
+        with rasterio.open(burned_path, "w", driver="GTiff", height=shape[0], width=shape[1], count=1,
+                           dtype="float32", crs=profile["crs"], transform=transform, nodata=no_value) as dst:
+            dst.write(np.where(np.isnan(burned), no_value, burned).astype("float32"), 1)
+        grid = Grid.from_raster(str(burned_path))
+        conditioned = grid.resolve_flats(grid.fill_depressions(grid.fill_pits(grid.read_raster(str(burned_path)))))
+        flowdir = np.asarray(grid.flowdir(conditioned))
+
+    hand = hand_from_flowdir(flowdir, dem, drain)
+    hand_cm = np.where(np.isnan(hand), nodata, np.round(hand / MDT_SCALE_M))
+    profile = profile | {"height": shape[0], "width": shape[1], "transform": transform, "dtype": "int32"}
+    with rasterio.open(_output("hand"), "w", **profile) as dst:
+        dst.write(hand_cm.astype("int32"), 1)
+        dst.scales = (MDT_SCALE_M,)
+
+
 def build_field_depths() -> None:
     """Puntos con el calado medido en campo tras la DANA (GVA: IVE, SGRT y UPV). No se usan para entrenar: sirven
     para dar gravedad a las celdas que solo marca la huella de la GVA y para comprobar el modelo."""
@@ -264,7 +338,8 @@ def main() -> None:
     """Prepara todas las fuentes, en orden: de data/raw a data/preparados."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     for step in (build_mdt, build_imperviousness, build_patricova, build_neighbourhoods, build_flood_events,
-                 build_municipalities, build_channels, build_field_depths, build_non_urban, build_geology, build_snczi):
+                 build_municipalities, build_channels, build_hand, build_field_depths, build_non_urban, build_geology,
+                 build_snczi):
         step()
         log.info("%s hecho", step.__name__)
 

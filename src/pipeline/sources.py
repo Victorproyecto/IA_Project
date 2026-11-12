@@ -8,6 +8,7 @@ Ficheros esperados en data/preparados/ (nombres en config.PREPARED_FILES):
   zonas_inundadas_dana2024.gpkg    Copernicus EMS EMSR773 + huella GVA, columnas "episode", "severity" y "source"
   municipios.gpkg                  IGN/CNIG límites municipales, columna "municipio"
   cauces_principales.gpkg          IGN hidrografía: cauces principales, columna "nombre"
+  altura_sobre_cauce.tif           altura sobre el cauce (HAND, m), calculada en la ingesta con el MDT y los cauces
   calados_campo_dana2024.gpkg      GVA DANA 2024: calado medido en campo, columna "depth_m" (no se usa para entrenar)
   suelo_no_urbano_clc2018.gpkg     Corine Land Cover 2018, arrozales y agua permanente (esas celdas se excluyen)
   geologia_igme.gpkg               IGME GEODE 50, unidades cuaternarias agrupadas, columna "grupo"
@@ -93,7 +94,8 @@ def _path(key: str) -> Path:
     """Ruta del fichero preparado de la fuente; error si falta (se genera con la ingesta)."""
     path = PREPARED_DIR / PREPARED_FILES[key]
     if not path.exists():
-        raise FileNotFoundError(f"Falta {path} ({SOURCES[key].name}); se genera con python -m src.pipeline.ingest")
+        origin = SOURCES[key].name if key in SOURCES else "derivado de otras fuentes"
+        raise FileNotFoundError(f"Falta {path} ({origin}); se genera con python -m src.pipeline.ingest")
     return path
 
 
@@ -221,6 +223,15 @@ def channel_distance(zones: gpd.GeoDataFrame, channels: gpd.GeoDataFrame) -> tup
 
 def load_channel_distance(zones: gpd.GeoDataFrame) -> tuple[np.ndarray, np.ndarray]:
     return channel_distance(zones, gpd.read_file(_path("channels")).to_crs(CRS))
+
+
+def load_height_above_channel(zones: gpd.GeoDataFrame) -> np.ndarray:
+    """Altura media (m) de cada celda sobre el cauce o el mar al que llega su agua siguiendo la pendiente (HAND, Height
+    Above Nearest Drainage); la calcula la ingesta. Los puntos de mar no cuentan en la media."""
+    values = _raster_points(_path("hand"), zones)
+    sea = _raster_points(_path("terrain"), zones) == SEA_ALTITUDE_M
+    values[sea] = np.nan
+    return _mean(values)
 
 
 def load_non_urban_fraction(zones: gpd.GeoDataFrame) -> np.ndarray:

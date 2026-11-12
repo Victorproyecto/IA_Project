@@ -33,6 +33,18 @@ def test_channel_distance_is_zero_on_channel_and_grows_away():
     assert list(name) == ["Cauce"] * 3
 
 
+def test_hand_follows_the_flow_to_the_drain_or_the_edge():
+    """Fila de arriba: el agua va hacia la izquierda hasta un cauce (columna 0). Fila de abajo: va hacia la derecha y
+    sale por el borde, sin cauce: la altura se mide sobre el píxel del borde."""
+    from src.pipeline.ingest import hand_from_flowdir
+
+    west, east = 16, 1
+    flowdir = np.array([[west] * 4, [east] * 4])
+    dem = np.array([[1.0, 2.0, 3.0, 4.0], [8.0, 7.0, 6.0, 5.0]])
+    drain = np.array([[True, False, False, False], [False] * 4])
+    assert np.allclose(hand_from_flowdir(flowdir, dem, drain), [[0, 1, 2, 3], [3, 2, 1, 0]])
+
+
 def test_covered_fraction_by_group():
     """Una celda cubierta a medias por un grupo y a un cuarto por otro; la otra celda, sin cubrir."""
     from shapely.geometry import box

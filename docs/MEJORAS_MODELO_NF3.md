@@ -11,20 +11,21 @@ qué resultados dan y cómo hay que leerlos.
 | Tamaño de celda | 250 m (1.397 celdas) | **100 m (41.401 celdas)** |
 | Etiqueta (qué se inundó) | Copernicus EMS (satélite) | **Copernicus EMS + huella oficial de la GVA** |
 | Celdas inundadas | 19 % | 24 % |
-| Variables | 4 de terreno | **8: altitud, pendiente, suelo sellado, distancia al cauce principal y 4 de geología** |
-| Modelo elegido | Regresión logística `0.2.0-lr` | **Random Forest `0.3.0-rf`** |
+| Variables | 4 de terreno | **9: altitud, pendiente, suelo sellado, distancia al cauce principal, altura sobre el cauce (HAND) y 4 de geología** |
+| Modelo elegido | Regresión logística `0.2.0-lr` | **Random Forest `0.4.0-rf`** |
 | Recall (validación) | 0,80 | 0,80 |
-| F1 (validación) | 0,39 | **0,69** (marcarlo todo daría 0,38) |
-| ROC-AUC | 0,74 | **0,90** |
-| Frente a los mapas oficiales en el área | - | F1 0,69 frente a 0,65 (SNCZI T=500) y 0,46 (PATRICOVA) |
-| En otra cuenca que no ha visto (la Ribera) | No se probó | **No generaliza** (ROC-AUC 0,50; PATRICOVA 0,80 y SNCZI 0,78) |
+| F1 (validación) | 0,39 | **0,72** (marcarlo todo daría 0,38) |
+| ROC-AUC | 0,74 | **0,92** |
+| Frente a los mapas oficiales en el área | - | F1 0,72 frente a 0,65 (SNCZI T=500) y 0,46 (PATRICOVA) |
+| En otra cuenca que no ha visto (la Ribera) | No se probó | **No generaliza** (ROC-AUC 0,59; PATRICOVA 0,80 y SNCZI 0,78) |
 | Celdas de otros municipios con barrio de València | 344 (error) | 0 |
-| Tests automáticos | 20 (no se ejecutaban en Windows) | **32, todos pasan también en Windows y tardan ~35 s** |
+| Tests automáticos | 20 (no se ejecutaban en Windows) | **33, todos pasan también en Windows y tardan ~35 s** |
 
 En resumen, el producto es un mapa de susceptibilidad aprendido de la DANA de 2024. Cubre la zona más afectada y
 supera a los mapas oficiales dentro del área en que se entrena, pero no es un predictor que funcione en cualquier zona
-o con cualquier tormenta, como muestra la prueba en la Ribera. El F1 (0,687) queda justo por debajo del objetivo de
-la Fase 1 (0,70).
+o con cualquier tormenta, como muestra la prueba en la Ribera. Cumple los dos criterios de la Fase 1 (Recall 0,80 y
+F1 0,722 frente al objetivo de 0,70), con poco margen en el F1: se alcanza al añadir la altura sobre el cauce (HAND),
+después de comprobar que sin ella el modelo se quedaba en 0,687 (apartado 2.5).
 
 ## 2. Cambios y motivo
 
@@ -36,12 +37,13 @@ la Fase 1 (0,70).
 | Celdas de 100 m | Mismo rendimiento que 250 m con 6 veces más detalle; a 50 m el modelo empeora | `config.py` |
 | Límites municipales (CNIG): municipio de cada celda por mayor superficie; barrio y distrito solo dentro de València | En NF3 cada celda recibía el barrio de València más cercano, también las de Mislata o Alboraya (344 celdas mal asignadas). Las celdas de playa, fuera de los recintos (que siguen la costa), toman el municipio más cercano | `ingest.py`, `sources.py`, `features.py`, `checks.py` |
 | Distancia al cauce principal (IGN): nuevo cauce del Turia y cursos naturales con nombre, en superficie | Las inundaciones de la zona son desbordamientos de barrancos. Se excluyen acequias, tramos subterráneos (el IGN guarda así 10,5 km del antiguo cauce bajo el Jardí), cursos sin nombre (desagües menores, como el de Natzaret) y el antiguo cauce del Turia | `ingest.py`, `sources.py` |
+| Altura sobre el cauce (HAND, *Height Above Nearest Drainage*): altura media de la celda sobre el cauce principal, el mar o el punto sin salida (la Albufera) al que llega su agua siguiendo la pendiente, calculada con el MDT de 5 m (remuestreado a 10 m) y los cauces del IGN | El agua desbordada llega a lo que está poco por encima del cauce, no a lo que está a poca altitud sobre el mar: une en una sola variable la altitud y los cauces. Es la variable hidrológica estándar en los mapas de susceptibilidad. Detalle en 2.5 | `ingest.py`, `sources.py`, `run.py`, `config.py` |
 | Geología del IGME (GEODE 50): fracción de la celda en 4 grupos (llanura de inundación o fondo de valle, limos de albufera o marjal, abanico aluvial, glacis o coluvión) | Describe el terreno que el agua encontró: las zonas de abanico y marjal son las que más pesan después de la altitud y los cauces | `ingest.py`, `sources.py`, `config.py` |
 | Etiqueta Copernicus EMS + huella oficial de la GVA | El satélite no ve el agua entre edificios: en L'Horta Sud, el 39 % de los puntos donde se midió agua (1,3-1,6 m de media) caía en celdas que Copernicus daba por no inundadas. La huella de la GVA cubre esos cascos urbanos | `ingest.py`, `sources.py`, `checks.py` |
 | Gravedad por calados de campo en las celdas que solo marca la GVA | La huella no trae calado; si en la celda se midió agua, manda el calado medido | `sources.py` |
 | Reparación de la huella de la GVA | Llega con geometría inválida (superficie negativa). Se repara y se comprueba que mide lo que declara la GVA (42.550 ha) | `ingest.py`, `tests/test_data.py` |
 | Exclusión del agua permanente y los arrozales (Corine Land Cover 2018) | No son suelo urbano, el satélite no distingue esa agua de la inundación y son aciertos fáciles que inflan las métricas (lago de la Albufera, cauces, arrozales) | `ingest.py`, `sources.py`, `run.py` |
-| PATRICOVA y SNCZI solo como referencia, no como variables | El modelo aprende del terreno y se compara con los mapas oficiales; si los usara como variable, repetiría parte de su información (con PATRICOVA como variable el F1 sube de 0,687 a 0,704) | `config.py`, `train.py` |
+| PATRICOVA y SNCZI solo como referencia, no como variables | El modelo aprende del terreno y se compara con los mapas oficiales; si los usara como variable, repetiría parte de su información (con PATRICOVA como variable el F1 sube de 0,722 a 0,732) | `config.py`, `train.py` |
 | Prueba externa en la Ribera (Magro y Xúquer: Algemesí, l'Alcúdia, Carlet, Guadassuar…) | Otra cuenca que también se inundó en la DANA y que el modelo nunca ve: mide si generaliza | `run.py`, `train.py` |
 
 ### 2.2 Entrenamiento y validación
@@ -81,27 +83,65 @@ ordenador).
 | Constantes con nombre en lugar de números sueltos | Cada parámetro tiene nombre y explicación en un solo sitio | `config.py` y `src/` |
 | DATOS.md con las fuentes nuevas y cómo descargarlas | El portal anterior del Ayuntamiento ya no existe: el proyecto no se podía reproducir | `docs/DATOS.md` |
 
+### 2.5 Altura sobre el cauce (HAND): cómo se llegó y cuánto aguanta la mejora
+
+Con las 8 variables anteriores, el Random Forest se quedaba en F1 0,687, por debajo del objetivo de 0,70. Otros
+hiperparámetros y otros algoritmos (Gradient Boosting, apartado 4) no pasaban de ~0,69: lo que faltaba era información
+del terreno, no ajustar el modelo. La altura sobre el cauce se eligió por criterio hidrológico (es la variable
+estándar de los mapas de susceptibilidad) y se probó en dos versiones:
+
+1. **Aproximación en línea recta** (altitud de la celda menos el fondo del cauce principal más cercano en línea recta):
+   F1 0,750. Se descarta porque el 11,6 % de las celdas salía con altura negativa (hasta −123 m): el cauce más cercano
+   en línea recta no es al que drena la celda (por ejemplo, un barranco de montaña cerca de una celda del llano).
+   Antes de calcular la segunda versión se decidió que, por ser el método correcto, sustituiría a esta aunque diera
+   menos.
+2. **HAND siguiendo el flujo** (la versión adoptada). En `ingest.py`, sobre el MDT remuestreado a 10 m: se rebajan los
+   cauces del IGN y el mar para que el agua siga su trazado, `pysheds` rellena las depresiones, resuelve las zonas
+   planas y calcula la dirección del flujo, y cada píxel se sigue cuesta abajo hasta su desagüe (un cauce, el mar, un
+   punto sin salida como la Albufera o el borde del MDT). Tarda unos 30 s y solo el 0,1 % de las celdas queda por
+   debajo de su desagüe (depresiones cerradas reales).
+
+**Cuánto aguanta la mejora.** Se repitió la validación con bloques de 3 km, más difíciles de "rellenar" desde las
+celdas vecinas, y se miró la Ribera:
+
+| Validación | Sin altura sobre el cauce | Con altura sobre el cauce |
+|---|---|---|
+| Bloques de 1 km (el método del proyecto) | F1 0,687 · ROC-AUC 0,902 · PR-AUC 0,685 | **F1 0,722** · ROC-AUC 0,920 · PR-AUC 0,749 |
+| Bloques de 3 km | F1 0,636 · ROC-AUC 0,873 · PR-AUC 0,628 | F1 0,634 · ROC-AUC 0,860 · PR-AUC 0,656 |
+| La Ribera (otra cuenca) | ROC-AUC 0,505 | ROC-AUC 0,592 |
+
+- Con el método de validación del proyecto (bloques de 1 km, fijado antes de esta prueba) la variable mejora todas las
+  métricas y el F1 supera el objetivo.
+- **Con bloques de 3 km la mejora de F1 y ROC-AUC desaparece** (solo sube la PR-AUC) y ningún modelo llega a 0,70.
+  Buena parte de la mejora consiste en predecir mejor celdas cercanas a otras que el modelo ya ha visto.
+- Fuera del área es la única variable que ha movido algo el resultado (ROC-AUC de 0,50 a 0,59), aunque el modelo sigue
+  sin servir en la Ribera.
+
+Por eso el objetivo de F1 se da por cumplido **con el método de validación del proyecto y con poco margen**, no como
+una mejora sólida en cualquier condición.
+
 ## 3. Resultados
 
-Todas las cifras salen de `data/modelos/model_card.json` (ejecución del 11/11/2026).
+Todas las cifras salen de `data/modelos/model_card.json` (modelo `0.4.0-rf`, ejecución del 12/11/2026).
 
 ### 3.1 Modelos y referencias (validación cruzada por bloques de 1 km)
 
 | Modelo | Recall | F1 | Precisión | ROC-AUC | PR-AUC |
 |---|---|---|---|---|---|
-| **Random Forest (elegido)** | 0,80 | **0,687** | **0,602** | **0,902** | **0,685** |
-| Regresión logística | 0,80 | 0,613 | 0,497 | 0,818 | 0,523 |
-| Random Forest con PATRICOVA como variable | 0,80 | 0,704 | 0,629 | 0,918 | 0,762 |
+| **Random Forest (elegido)** | 0,80 | **0,722** | **0,658** | **0,920** | **0,749** |
+| Regresión logística | 0,80 | 0,602 | 0,483 | 0,844 | 0,576 |
+| Random Forest con PATRICOVA como variable | 0,80 | 0,732 | 0,674 | 0,930 | 0,797 |
+| Random Forest sin la altura sobre el cauce (modelo anterior, `0.3.0-rf`) | 0,80 | 0,687 | 0,602 | 0,902 | 0,685 |
 | SNCZI T=500 tal cual (cualquier celda en la zona = riesgo) | 0,575 | 0,646 | 0,738 | 0,756 | 0,525 |
 | PATRICOVA tal cual (cualquier nivel = riesgo) | 0,375 | 0,458 | 0,588 | 0,651 | 0,409 |
 | Marcarlo todo como inundado | 1,00 | 0,382 | 0,236 | 0,500 | - |
 
-- El modelo cumple Recall ≥ 0,80 y **se queda justo por debajo de F1 ≥ 0,70** (criterios de la Fase 1). Supera a la
-  regresión logística, al SNCZI y a PATRICOVA.
-- **El F1 hay que leerlo frente a 0,38**, que es lo que daría marcarlo todo: la mejora real es de +0,31. El ROC-AUC
-  (0,90) no depende de cuántas celdas se inundaron y va de 0,88 a 0,93 según el grupo de bloques.
-- **Con PATRICOVA como variable** el modelo sube a F1 0,704 (+0,017): lo que PATRICOVA añade a lo que ya se sabe del
-  terreno es poco.
+- El modelo **cumple los dos criterios de la Fase 1**: Recall ≥ 0,80 y F1 ≥ 0,70 (0,722, con poco margen). Supera a
+  la regresión logística, al SNCZI y a PATRICOVA.
+- **El F1 hay que leerlo frente a 0,38**, que es lo que daría marcarlo todo: la mejora real es de +0,34. El ROC-AUC
+  (0,92) no depende de cuántas celdas se inundaron y va de 0,91 a 0,94 según el grupo de bloques.
+- **Con PATRICOVA como variable** el modelo sube a F1 0,732 (+0,010): lo que PATRICOVA añade a lo que ya se sabe del
+  terreno es poco, y menos que antes de añadir la altura sobre el cauce (+0,017), que recoge parte de esa información.
 - **La comparación favorece algo al modelo**, que aprende de esta misma DANA, mientras que los mapas oficiales son
   anteriores y describen otra cosa (periodos de retorno).
 - Los mapas oficiales dejan fuera una parte grande de lo inundado: el 62 % de las celdas inundadas (6.102 de 9.765)
@@ -115,12 +155,14 @@ celdas, el 63 % inundadas.
 | | F1 | ROC-AUC | Recall |
 |---|---|---|---|
 | Marcarlo todo como inundado | 0,775 | 0,500 | 1,00 |
-| **Modelo** | **0,060** | **0,505** | 0,03 |
+| **Modelo** | **0,066** | **0,592** | 0,03 |
+| Modelo anterior, sin la altura sobre el cauce (`0.3.0-rf`) | 0,060 | 0,505 | 0,03 |
 | PATRICOVA | 0,814 | 0,800 | 0,78 |
 | SNCZI T=500 | 0,842 | 0,776 | 0,86 |
 
-**En una cuenca que no ha visto, el modelo no sirve:** su ROC-AUC de 0,50 es el de tirar una moneda y los mapas
-oficiales funcionan mucho mejor. Con un solo episodio, el modelo aprende cómo se inundó cada zona en 2024, no reglas
+**En una cuenca que no ha visto, el modelo no sirve:** su ROC-AUC de 0,59 está poco por encima del de tirar una
+moneda (0,50, la del modelo anterior) y los mapas oficiales funcionan mucho mejor. La altura sobre el cauce es la
+única variable que ha movido algo esta cifra, pero no lo bastante para usar el modelo fuera del área. Con un solo episodio, el modelo aprende cómo se inundó cada zona en 2024, no reglas
 que se trasladen a otra. En L'Horta casi no hay llanura de inundación de la que aprender lo que pasa en la Ribera.
 
 Consecuencias:
@@ -133,32 +175,38 @@ Consecuencias:
 
 | | Modelo (celdas Medio o Alto, en validación) | SNCZI T=500 | PATRICOVA |
 |---|---|---|---|
-| Puntos con ≥ 0,3 m de agua medida (3.192 puntos en 1.409 celdas) | **86 %** | 67 % | 34 % |
+| Puntos con ≥ 0,3 m de agua medida (3.192 puntos en 1.409 celdas) | **83 %** | 67 % | 34 % |
 
 No es una validación independiente: la huella de la GVA, que forma parte de la etiqueta, cubre casi todos estos
-puntos. Lo que sí muestra es que **dos de cada tres puntos donde se midió agua quedaban fuera de PATRICOVA**.
+puntos. Lo que sí muestra es que **dos de cada tres puntos donde se midió agua quedaban fuera de PATRICOVA**. Con la
+altura sobre el cauce, el modelo detecta algo menos de estos puntos que el modelo anterior (86 %): marca menos celdas
+en Medio o Alto con el mismo recall, y algunas de las que deja fuera tienen puntos medidos.
 
 ### 3.4 Importancia de las variables (permutación)
 
 | Variable | Caída de PR-AUC al desordenarla |
 |---|---|
-| Distancia al cauce principal | 0,317 |
-| Altitud media | 0,288 |
-| Pendiente | 0,191 |
-| Geología: abanico aluvial | 0,174 |
-| Geología: limos de albufera o marjal | 0,143 |
-| Suelo sellado | 0,114 |
-| Geología: glacis o coluvión | 0,029 |
-| Geología: llanura de inundación | 0,012 |
+| Altitud media | 0,289 |
+| Altura sobre el cauce (HAND) | 0,265 |
+| Distancia al cauce principal | 0,231 |
+| Geología: abanico aluvial | 0,165 |
+| Pendiente | 0,150 |
+| Geología: limos de albufera o marjal | 0,122 |
+| Suelo sellado | 0,078 |
+| Geología: glacis o coluvión | 0,021 |
+| Geología: llanura de inundación | 0,008 |
+
+La altura sobre el cauce entra como segunda variable y quita peso a la distancia al cauce, a la pendiente y al suelo
+sellado, que recogían parte de la misma información.
 
 ### 3.5 Niveles y falsos negativos
 
-Umbrales fijados en validación: **Medio ≥ 0,356** (Medio + Alto encuentran el 80 % de lo inundado) y **Alto ≥ 0,532**
-(concentra el 50 %). El mapa tiene 28.324 celdas en Bajo, 5.601 en Medio y 7.476 en Alto.
+Umbrales fijados en validación: **Medio ≥ 0,348** (Medio + Alto encuentran el 80 % de lo inundado) y **Alto ≥ 0,531**
+(concentra el 50 %). El mapa tiene 29.471 celdas en Bajo, 4.749 en Medio y 7.181 en Alto.
 
-Las zonas con más celdas inundadas no detectadas en validación son Picassent (55 %, 183 de 333), Alfafar (53 %, 173
-de 328), Manises (34 %) y Aldaia (31 %): cascos urbanos que la huella de la GVA marca como inundados y que el terreno
-por sí solo no distingue. La lista completa está en la pestaña *Modelo y datos*.
+Las zonas con más celdas inundadas no detectadas en validación son Alfafar (61 %, 201 de 328), Picassent (47 %, 155
+de 333), Sedaví (35 %, 56 de 158) y Manises (35 %, 51 de 144): cascos urbanos que la huella de la GVA marca como
+inundados y que el terreno por sí solo no distingue. La lista completa está en la pestaña *Modelo y datos*.
 
 ## 4. Pruebas descartadas
 
@@ -169,7 +217,8 @@ por sí solo no distingue. La lista completa está en la pestaña *Modelo y dato
 | Lluvia (local o aguas arriba) | - | Con un solo episodio, la lluvia aguas arriba equivale a decirle al modelo qué barranco se desbordó: mejora las cifras sin aprender nada trasladable. La lluvia local es casi igual en todo el piloto |
 | Gradient Boosting como tercer candidato | Empata con Random Forest | No aporta y añade complejidad |
 | Solo Copernicus como etiqueta | Cascos urbanos de L'Horta Sud en nivel Bajo | Ver 2.1: el satélite no ve el agua entre edificios |
-| PATRICOVA como variable del modelo | F1 0,704 (+0,017) | Se deja como referencia con la que comparar, no como variable |
+| PATRICOVA como variable del modelo | F1 0,732 (+0,010) | Se deja como referencia con la que comparar, no como variable |
+| Altura sobre el cauce en línea recta (cauce más cercano, sin seguir el flujo) | F1 0,750 | El 11,6 % de las celdas salía con altura negativa (hasta −123 m). Se sustituye por el HAND siguiendo el flujo (apartado 2.5) |
 | SNCZI para T=100 años | - | Se deja solo T=500, el más comparable a un episodio extremo como la DANA |
 | Generalización entre València y L'Horta Sud | El modelo no superaba a PATRICOVA | Con el área ampliada a las dos comarcas, ya no hay dos zonas separables; la Ribera es una prueba externa real |
 | Mapa que cambia de barrios a celdas según el zoom | Las celdas de nivel Bajo desaparecían al acercarse | Se deja solo el mapa de celdas |
@@ -178,8 +227,9 @@ por sí solo no distingue. La lista completa está en la pestaña *Modelo y dato
 
 - **Licencias de los datos:** por verificar las del IGME (GEODE 50), el SNCZI, PATRICOVA y los datos de la GVA (la
   etiqueta depende de la huella).
-- **F1 por debajo del objetivo:** 0,687 frente a 0,70. El Recall se cumple, el F1 hay que leerlo frente a la referencia
-  trivial (0,38) y el ROC-AUC (0,90) no depende de la proporción de inundadas.
+- **F1 con poco margen:** 0,722 frente a 0,70 con bloques de 1 km; con bloques de 3 km, 0,634, igual que sin la altura
+  sobre el cauce (apartado 2.5). El F1 hay que leerlo frente a la referencia trivial (0,38) y el ROC-AUC (0,92) no
+  depende de la proporción de inundadas.
 
 ## 6. Trabajo futuro (NF4)
 
@@ -190,9 +240,9 @@ por sí solo no distingue. La lista completa está en la pestaña *Modelo y dato
 ## 7. Cómo reproducirlo
 
 ```bash
-python -m src.pipeline.ingest   # data/raw → data/preparados (incluye la huella de la GVA, reparada)
-python -m src.pipeline.run      # celdas de 100 m, variables y etiqueta (~5 min)
-python -m src.pipeline.train    # validación, prueba externa, ficha del modelo y predicciones (~2 min)
+python -m src.pipeline.ingest   # data/raw → data/preparados (huella de la GVA reparada y altura sobre el cauce), ~3 min
+python -m src.pipeline.run      # celdas de 100 m, variables y etiqueta (~20 min)
+python -m src.pipeline.train    # validación, prueba externa, ficha del modelo y predicciones (~1 min)
 streamlit run src/frontend/app.py
-python -m pytest                # 32 tests (~35 s)
+python -m pytest                # 33 tests (~35 s)
 ```

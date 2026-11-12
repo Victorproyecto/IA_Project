@@ -25,6 +25,7 @@ PREPARED_FILES = {
     "flood_events": "zonas_inundadas_dana2024.gpkg",
     "municipalities": "municipios.gpkg",
     "channels": "cauces_principales.gpkg",
+    "hand": "altura_sobre_cauce.tif",
     "field_depths": "calados_campo_dana2024.gpkg",
     "non_urban": "suelo_no_urbano_clc2018.gpkg",
     "geology": "geologia_igme.gpkg",
@@ -121,12 +122,15 @@ GEOLOGY_LABELS = {"geo_aluvial": "llanura de inundación o fondo de valle", "geo
 # En la ficha de la celda, su geología es el grupo que más ocupa si llega a esta fracción; si no, "otros"
 GEOLOGY_DOMINANT_MIN_FRACTION = 0.5
 # Variables del modelo: terreno, suelo, cauces y geología. Los mapas oficiales de peligrosidad (PATRICOVA y SNCZI) no son
-# variables: son la referencia con la que se compara
+# variables: son la referencia con la que se compara. height_above_channel_m (HAND: altura sobre el cauce o el mar al
+# que llega el agua de la celda siguiendo la pendiente) une altitud y cauce: el agua desbordada llega a lo que está poco
+# por encima del cauce, no a lo que está a poca altitud sobre el mar
 FEATURES = [
     "altitude_avg",
     "slope_avg",
     "imperviousness",
     "dist_channel_km",
+    "height_above_channel_m",
     *GEOLOGY_GROUPS,
 ]
 # Calado medido en campo a partir del cual un punto cuenta como "con agua" (comprobación con calados de campo)

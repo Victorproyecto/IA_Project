@@ -15,33 +15,36 @@
 **Completo**
 
 - Ingesta reproducible de 11 fuentes reales desde sus descargas originales (`src/pipeline/ingest.py`), incluida la
-  reparación de la huella oficial de la GVA, que llega con geometría inválida. Los datos no se versionan: los
-  originales (`data/raw`, 1,7 GB) están en Google Drive y el resto se genera con `ingest`, `run` y `train`.
-- Preparación: 41.401 celdas de 100 m en los 22 municipios del área (València, L'Horta Sud y L'Horta Oest), 8
-  variables (altitud, pendiente, suelo sellado, distancia al cauce principal y 4 de geología) y etiqueta de la DANA
-  (Copernicus EMS + huella de la GVA: 9.765 celdas inundadas, el 24 %). Se excluyen el mar, los arrozales y el agua
-  permanente.
+  reparación de la huella oficial de la GVA, que llega con geometría inválida, y el cálculo de la altura sobre el cauce
+  (HAND) siguiendo el flujo del agua sobre el MDT. Los datos no se versionan: los originales (`data/raw`, 1,7 GB)
+  están en Google Drive y el resto se genera con `ingest`, `run` y `train`.
+- Preparación: 41.401 celdas de 100 m en los 22 municipios del área (València, L'Horta Sud y L'Horta Oest), 9
+  variables (altitud, pendiente, suelo sellado, distancia al cauce principal, altura sobre el cauce y 4 de geología)
+  y etiqueta de la DANA (Copernicus EMS + huella de la GVA: 9.765 celdas inundadas, el 24 %). Se excluyen el mar, los
+  arrozales y el agua permanente.
 - Entrenamiento de 2 modelos con validación cruzada por bloques espaciales de 1 km, comparación con PATRICOVA y el
   SNCZI, prueba externa en la Ribera (otra cuenca), comprobación con calados de campo, ficha del modelo y
   predicciones.
 - Aplicación: mapa de celdas de 100 m con JavaScript (MapLibre), capa de lo inundado en la DANA, buscador con
   sugerencias de municipios, barrios, calles y direcciones, ficha de celda explicada, tabla accesible y ficha del
   modelo.
-- 32 tests automáticos (también en Windows), Docker y CI.
+- 33 tests automáticos (también en Windows), Docker y CI.
 
 **Parcial**
 
-- El modelo (Random Forest `0.3.0-rf`) cumple el criterio de Recall de la Fase 1 (0,80) y **se queda justo por debajo
-  del de F1: 0,687 frente al objetivo de 0,70**. El F1 hay que leerlo frente a 0,38, que es lo que daría marcar todas
-  las celdas como inundadas; el ROC-AUC es 0,90.
-- Dentro del área supera a los mapas oficiales: F1 0,69 frente a 0,65 del SNCZI (T=500) y 0,46 de PATRICOVA. La
+- El modelo (Random Forest `0.4.0-rf`) cumple los dos criterios de la Fase 1: Recall 0,80 y **F1 0,722 frente al
+  objetivo de 0,70, con poco margen**. El F1 hay que leerlo frente a 0,38, que es lo que daría marcar todas las celdas
+  como inundadas; el ROC-AUC es 0,92. El objetivo se alcanza al añadir la altura sobre el cauce (sin ella, 0,687) y
+  con el método de validación del proyecto (bloques de 1 km): con bloques de 3 km el F1 es 0,63 con y sin esa
+  variable (detalle en `docs/MEJORAS_MODELO_NF3.md`, apartado 2.5).
+- Dentro del área supera a los mapas oficiales: F1 0,72 frente a 0,65 del SNCZI (T=500) y 0,46 de PATRICOVA. La
   comparación favorece algo al modelo, que aprende de esta misma DANA, mientras que los mapas oficiales son
   anteriores. Aun así, el 62 % de las celdas inundadas (6.102 de 9.765) estaba fuera de PATRICOVA.
-- **En otra cuenca no generaliza:** en la Ribera (que el modelo nunca ve) su ROC-AUC es 0,50, mientras que PATRICOVA
+- **En otra cuenca no generaliza:** en la Ribera (que el modelo nunca ve) su ROC-AUC es 0,59, mientras que PATRICOVA
   y el SNCZI alcanzan 0,80 y 0,78. Con un solo episodio, el modelo aprende cómo se inundó cada zona en 2024, no
   reglas que se trasladen a otra.
 - En la CI se saltan los tests que necesitan datos, porque `data/` no se versiona. En local, con los datos, pasan los
-  32.
+  33.
 
 **Cambio de alcance respecto a la Fase 1**
 
@@ -214,7 +217,7 @@ docs/
 - **Enlace y versión:** https://github.com/Victorproyecto/IA_Project, tag `nf3-entrega` (rama `main`).
 - **README:** requisitos, configuración y comandos.
 - **Dependencias:** `environment/requirements.txt` con versiones fijadas. `.env.example` sin secretos.
-- **Pruebas:** `python -m pytest` (32 tests, también en Windows, unos 35 s) y CI en `.github/workflows/ci.yml`.
+- **Pruebas:** `python -m pytest` (33 tests, también en Windows, unos 35 s) y CI en `.github/workflows/ci.yml`.
   Resultado:
 
 ![pytest](capturas/08_terminal_pytest.png)
@@ -227,11 +230,13 @@ docs/
 
 - `ingest.py`: une y recorta las descargas originales y genera `data/preparados/` (terreno, suelo sellado, PATRICOVA,
   barrios, etiqueta de la DANA con Copernicus EMS y la huella de la GVA reparada, municipios, cauces principales,
-  calados de campo, suelo no urbano de Corine, geología del IGME y zona inundable del SNCZI).
+  calados de campo, suelo no urbano de Corine, geología del IGME y zona inundable del SNCZI). Con el MDT y los cauces
+  calcula la altura sobre el cauce (HAND): sigue el agua de cada píxel cuesta abajo hasta su cauce, el mar o la
+  Albufera, con `pysheds` para la dirección del flujo.
 - `grid.py`: crea la cuadrícula de 100 m sobre el área piloto, fijada en metros, y calcula la pendiente.
 - `sources.py`: lleva cada fuente a la celda (media de 25 puntos en rásteres, cruce espacial en vectores), asigna
-  municipio y barrio por mayor superficie, calcula la distancia al cauce principal y la gravedad de lo inundado
-  (completada con los calados de campo).
+  municipio y barrio por mayor superficie, calcula la distancia al cauce principal, la altura media sobre el cauce y la
+  gravedad de lo inundado (completada con los calados de campo).
 - `features.py`: invierte PATRICOVA para que más sea peor (solo para la comparación) y define la unidad territorial
   (barrio o distrito en València, municipio fuera).
 - `blocks.py`: agrupa las celdas en bloques de 1 km y los reparte en 5 grupos de validación.
@@ -257,7 +262,8 @@ docs/
 
 - `conftest.py`: ejecuta `run` y un `train` rápido una sola vez, sobre un recorte de 6 x 6 km y en un directorio
   temporal.
-- `test_features.py` y `test_evaluation.py`: cuadrícula, pendiente, bloques, umbrales y métricas.
+- `test_features.py` y `test_evaluation.py`: cuadrícula, pendiente, altura sobre el cauce, bloques, umbrales y
+  métricas.
 - `test_data.py`: comprobaciones de los Parquet generados y de la reparación de la huella de la GVA.
 - `test_model.py`: contenido de la ficha del modelo.
 - `test_backend.py` y `test_frontend.py`: funciones de `services.py` y arranque de la aplicación.
@@ -274,17 +280,19 @@ docs/
   algunas licencias de datos.
 - **Un solo episodio:** el modelo aprende de la DANA de 2024. Es un mapa de susceptibilidad aprendido de esa DANA, no
   una predicción de qué pasaría con otra lluvia.
-- **No generaliza a otra cuenca:** en la Ribera su ROC-AUC es 0,50 y PATRICOVA y el SNCZI funcionan mucho mejor. La
+- **No generaliza a otra cuenca:** en la Ribera su ROC-AUC es 0,59 y PATRICOVA y el SNCZI funcionan mucho mejor. La
   validación por bloques de 1 km mide si el modelo rellena bien los huecos dentro de una zona que conoce, y es algo
-  optimista.
-- **F1 y proporción de inundadas:** el F1 de 0,69 hay que leerlo frente a 0,38, lo que daría marcarlo todo. Queda
-  justo por debajo del objetivo de la Fase 1 (0,70).
+  optimista: con bloques de 3 km el F1 baja a 0,63.
+- **F1 y proporción de inundadas:** el F1 de 0,72 hay que leerlo frente a 0,38, lo que daría marcarlo todo. Supera el
+  objetivo de la Fase 1 (0,70) por poco, gracias a una variable que se añadió después de ver que sin ella no se
+  llegaba, y esa mejora no se mantiene con bloques de 3 km.
 - **Sin lluvia:** con un solo episodio, la lluvia no se puede aprender. El mapa es fijo, no es tiempo real.
 - **Etiqueta:** Copernicus no ve el agua entre edificios; la huella de la GVA lo corrige en los cascos urbanos, pero
   por eso los calados de campo ya no son una validación independiente.
 - **Comparación con los mapas oficiales favorable al modelo:** aprende de esta DANA; PATRICOVA y el SNCZI son
   anteriores y describen otra cosa (periodos de retorno).
-- **Métricas posiblemente algo optimistas:** la variable de cauces se diseñó revisando este mismo episodio.
+- **Métricas posiblemente algo optimistas:** las variables de cauces (distancia y altura sobre el cauce) se diseñaron
+  revisando este mismo episodio.
 - **Atajos:** el backend no es un servicio aparte; los umbrales se fijan sobre las mismas predicciones de validación
   que se usan para medir.
 - **Conexión:** el navegador necesita internet para el mapa de fondo, la librería del mapa y las sugerencias de
@@ -297,6 +305,6 @@ docs/
 - [x] Tag exacto indicado en la portada (`nf3-entrega`)
 - [x] README actualizado con requisitos y comandos
 - [x] Dependencias con versiones fijadas y `.env.example` sin secretos
-- [x] Tests automáticos (32) y CI
+- [x] Tests automáticos (33) y CI
 - [x] Datos referenciados con fuente y licencia (docs/DATOS.md; algunas licencias, por verificar)
 - [x] Capturas de front, backend y flujo completo

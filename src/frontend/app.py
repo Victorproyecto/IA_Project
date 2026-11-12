@@ -109,6 +109,7 @@ def zone_detail(zone_id: int, data, card: dict) -> None:
     snczi = "sí" if row[SNCZI_COLUMN] else "no"
     st.caption(
         f"Cauce principal más cercano: {row['channel_name']} a {row['dist_channel_km'] * M_PER_KM:.0f} m · "
+        f"altura sobre el cauce al que drena: {row['height_above_channel_m']:.1f} m · "
         f"altitud {row['altitude_avg']:.1f} m · pendiente {row['slope_avg']:.2f} % · "
         f"impermeable {row['imperviousness']:.0f} % · geología: {row['geology']} · "
         f"en mapas oficiales: PATRICOVA {patricova}, SNCZI T=500 {snczi}"
@@ -354,8 +355,9 @@ def model_details(card: dict) -> None:
         "lluvia. La etiqueta une el satélite (Copernicus EMS), que no ve el agua entre edificios, y la huella oficial "
         "de la GVA, que cubre los cascos urbanos. Los arrozales y el agua permanente (lago de la Albufera, cauces; "
         "Corine Land Cover) se excluyen: no son suelo urbano y el satélite no distingue esa agua de la inundación. La "
-        "validación por bloques de 1 km es algo optimista y el F1 sube por la proporción de celdas inundadas (ver "
-        "referencia trivial). La distancia al cauce se diseñó revisando este mismo episodio. Sin datos de drenaje, el "
+        "validación por bloques de 1 km es algo optimista (con bloques de 3 km el F1 baja a 0,63, con y sin la altura "
+        "sobre el cauce) y el F1 sube por la proporción de celdas inundadas (ver referencia trivial). La distancia y la "
+        "altura sobre el cauce se diseñaron revisando este mismo episodio. Sin datos de drenaje, el "
         "modelo no representa la red de alcantarillado."
     )
 
