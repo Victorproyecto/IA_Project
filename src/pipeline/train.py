@@ -1,3 +1,4 @@
+"""Entrenamiento con validación cruzada por bloques espaciales y predicciones. Uso: python -m src.pipeline.train"""
 
 import json
 import logging
@@ -48,9 +49,10 @@ REFERENCES = {"PATRICOVA": ("patricova_score", PATRICOVA_MAX_LEVEL), "SNCZI T=50
 REFERENCE_COLUMNS = [column for column, _ in REFERENCES.values()]
 # Un mapa oficial marca "en riesgo" cualquier celda dentro de una de sus zonas (puntuación > 0)
 IN_HAZARD_ZONE = 1e-9
-#esta función devuelve un diccionario con los modelos candidatos, cada uno con su pipeline y calibración de probabilidad.
+
+
 def candidates(rf_trees: int = RF_TREES) -> dict:
-    #Pesos de clase por el desequilibrio y calibración para que risk_probability sea interpretable.
+    """Pesos de clase por el desequilibrio y calibración para que risk_probability sea interpretable."""
     base = {
         "logistic_regression": make_pipeline(
             StandardScaler(), LogisticRegression(class_weight="balanced", max_iter=LR_MAX_ITER)
@@ -60,22 +62,21 @@ def candidates(rf_trees: int = RF_TREES) -> dict:
             random_state=RANDOM_STATE,
         ),
     }
-    modelo = {name: CalibratedClassifierCV(model, method="sigmoid", cv=CALIBRATION_FOLDS) for name, model in base.items()}
-    return modelo 
+    return {name: CalibratedClassifierCV(model, method="sigmoid", cv=CALIBRATION_FOLDS) for name, model in base.items()}
 
-# esta función calcula la importancia de las características mediante permutación, midiendo la caída en PR-AUC al desordenar cada variable. Devuelve un diccionario con las características y sus importancias promedio.
+
 def feature_importance(model, table: pd.DataFrame, repeats: int = PERMUTATION_REPEATS) -> dict[str, float]:
-    #Importancia por permutación: cuánto cae la PR-AUC al desordenar cada variable. Mismo criterio para los dos
-    #modelos (los coeficientes de la regresión y las importancias del bosque no son comparables entre sí).
+    """Importancia por permutación: cuánto cae la PR-AUC al desordenar cada variable. Mismo criterio para los dos
+    modelos (los coeficientes de la regresión y las importancias del bosque no son comparables entre sí)."""
     result = permutation_importance(
         model, table[FEATURES], table["flooded"], scoring="average_precision", n_repeats=repeats,
         random_state=RANDOM_STATE, n_jobs=-1,
     )
     return dict(zip(FEATURES, result.importances_mean.round(4).tolist(), strict=True))
 
-# esta función realiza validación cruzada por bloques, entrenando el modelo sin el grupo de bloques de cada celda y devolviendo la probabilidad predicha para cada celda. Devuelve un array con las probabilidades.
+
 def out_of_fold(model, table: pd.DataFrame, features: list[str] = FEATURES) -> np.ndarray:
-    #Probabilidad de cada celda predicha por un modelo entrenado sin el grupo de bloques de esa celda.
+    """Probabilidad de cada celda predicha por un modelo entrenado sin el grupo de bloques de esa celda."""
     proba = np.zeros(len(table))
     for fold in range(N_FOLDS):
         held_out = (table["fold"] == fold).to_numpy()
@@ -83,39 +84,38 @@ def out_of_fold(model, table: pd.DataFrame, features: list[str] = FEATURES) -> n
         proba[held_out] = model.predict_proba(table.loc[held_out, features])[:, 1]
     return proba
 
-# esta función calcula el ROC-AUC para cada grupo de bloques por separado, permitiendo ver cuánto varía la métrica según la zona. Devuelve una lista con los valores de ROC-AUC por grupo.
+
 def roc_auc_by_fold(table: pd.DataFrame, proba: np.ndarray) -> list[float]:
-    #ROC-AUC de cada grupo por separado, para ver cuánto varía según la zona.
+    """ROC-AUC de cada grupo por separado, para ver cuánto varía según la zona."""
     return [round(roc_auc_score(g["flooded"], proba[g.index]), 4) for _, g in table.groupby("fold")]
 
-# esta función calcula el F1 score de marcar todas las celdas como inundadas, lo que sirve como referencia trivial. Devuelve el valor de F1 redondeado a 3 decimales.
+
 def mark_all_f1(flooded: pd.Series) -> float:
-    #F1 de marcarlo todo como inundado: con muchas celdas inundadas, el F1 sube solo; es la referencia trivial.
+    """F1 de marcarlo todo como inundado: con muchas celdas inundadas, el F1 sube solo; es la referencia trivial."""
     share = float(flooded.mean())
     return round(2 * share / (1 + share), 3)
 
-# esta función calcula las métricas de validación para cada mapa oficial, comparando la predicción del mapa con la etiqueta de inundación. Devuelve un diccionario con los resultados de validación para cada mapa oficial.
+
 def official_references(table: pd.DataFrame) -> dict:
-    #Cada mapa oficial tal cual: una celda en su zona de peligrosidad cuenta como "en riesgo".
+    """Cada mapa oficial tal cual: una celda en su zona de peligrosidad cuenta como "en riesgo"."""
     result = {}
     for name, (column, scale) in REFERENCES.items():
         score = table[column] / scale
         result[name] = {"column": column, "validation": metrics(table["flooded"], score, IN_HAZARD_ZONE)}
     return result
 
-#esta función realiza una prueba de ablation añadiendo la variable "patricova_score" al modelo elegido, mostrando cuánto mejoraría el modelo con esta variable adicional. Devuelve un diccionario con las características utilizadas y las métricas de validación.
+
 def with_patricova(chosen: str, table: pd.DataFrame, rf_trees: int = RF_TREES) -> dict:
-    #Prueba: el modelo elegido con PATRICOVA como variable más. Muestra cuánto añadiría un mapa oficial.
+    """Prueba: el modelo elegido con PATRICOVA como variable más. Muestra cuánto añadiría un mapa oficial."""
     features = [*FEATURES, "patricova_score"]
     proba = out_of_fold(candidates(rf_trees)[chosen], table, features)
     threshold = choose_thresholds(table["flooded"].to_numpy(), proba)["medio"]
-    metricas = {"features": features, "validation": metrics(table["flooded"], proba, threshold)}
-    return metricas
+    return {"features": features, "validation": metrics(table["flooded"], proba, threshold)}
 
-# esta función calcula las métricas de validación para un conjunto de prueba externo, comparando la predicción del modelo con la etiqueta de inundación. Devuelve un diccionario con los resultados de validación y las métricas de los mapas oficiales.
+
 def _scores(test: pd.DataFrame, proba: np.ndarray, threshold: float) -> dict:
-    #Modelo y mapas oficiales sobre las mismas celdas de prueba, más la referencia trivial.
-    scores = {
+    """Modelo y mapas oficiales sobre las mismas celdas de prueba, más la referencia trivial."""
+    return {
         "test_cells": int(len(test)),
         "test_flooded_share": round(float(test["flooded"].mean()), 3),
         "mark_all_f1": mark_all_f1(test["flooded"]),
@@ -123,24 +123,24 @@ def _scores(test: pd.DataFrame, proba: np.ndarray, threshold: float) -> dict:
         "references": {name: metrics(test["flooded"], test[column] / scale, IN_HAZARD_ZONE)
                        for name, (column, scale) in REFERENCES.items()},
     }
-    return scores
 
-#Esta funcion devuelve un diccionario con los resultados de la prueba externa en la Ribera, comparando la predicción del modelo con la etiqueta de inundación y las métricas de los mapas oficiales.
+
 def external_test(model, threshold: float) -> dict:
-    #Prueba externa en la Ribera, otra cuenca (Magro y Xúquer) que el modelo nunca ha visto: el modelo final,
-    #entrenado con todo el área piloto, predice sus celdas a más de GENERALIZATION_GAP_M del área piloto.
+    """Prueba externa en la Ribera, otra cuenca (Magro y Xúquer) que el modelo nunca ha visto: el modelo final,
+    entrenado con todo el área piloto, predice sus celdas a más de GENERALIZATION_GAP_M del área piloto."""
     external = gpd.read_parquet(EXTERNAL_TEST_FILE)
     far = external.geometry.centroid.y < PILOT_EXTENT[1] - GENERALIZATION_GAP_M
     external = external[far.to_numpy()]
     return {"region": "La Ribera", "gap_m": GENERALIZATION_GAP_M,
             **_scores(external, model.predict_proba(external[FEATURES])[:, 1], threshold)}
 
-# Esta función realiza una comprobación con calados medidos en campo, comparando los puntos de profundidad con las predicciones del modelo y los mapas oficiales. Devuelve un diccionario con el porcentaje de detección del modelo y de los mapas oficiales.
-def field_check(zones: gpd.GeoDataFrame, validated: pd.DataFrame, threshold: float) -> dict:
-    #Comprobación con calados medidos en campo: % de puntos con agua en celdas Medio/Alto, modelo y mapas oficiales.
 
-    #No es una validación independiente: la huella de la GVA, que forma parte de la etiqueta, cubre casi todos estos
-    #puntos. Sirve para comprobar dónde había agua de verdad y comparar con los mapas oficiales.
+def field_check(zones: gpd.GeoDataFrame, validated: pd.DataFrame, threshold: float) -> dict:
+    """Comprobación con calados medidos en campo: % de puntos con agua en celdas Medio/Alto, modelo y mapas oficiales.
+
+    No es una validación independiente: la huella de la GVA, que forma parte de la etiqueta, cubre casi todos estos
+    puntos. Sirve para comprobar dónde había agua de verdad y comparar con los mapas oficiales.
+    """
     points = gpd.sjoin(sources.load_field_depths(), zones[["zone_id", "geometry"]], predicate="within")
     points = points.merge(validated[["zone_id", "proba", *REFERENCE_COLUMNS]], on="zone_id")
     model = field_depth_detection(points["depth_m"], points["proba"] >= threshold, FIELD_DEPTH_MIN_M)
@@ -154,10 +154,10 @@ def field_check(zones: gpd.GeoDataFrame, validated: pd.DataFrame, threshold: flo
         "references_detected_pct": references,
     }
 
-# esta función realiza la validación cruzada por bloques de cada candidato, calculando las probabilidades de predicción y las métricas de validación para cada modelo. Devuelve un diccionario con los resultados por modelo y otro diccionario con las probabilidades de validación por modelo.
+
 def evaluate_candidates(table: pd.DataFrame, rf_trees: int = RF_TREES) -> tuple[dict, dict]:
-    #Validación cruzada por bloques de cada candidato: cada celda recibe la probabilidad de un modelo que no vio su
-    #zona. Devuelve (resultados por modelo, probabilidades de validación por modelo)."""
+    """Validación cruzada por bloques de cada candidato: cada celda recibe la probabilidad de un modelo que no vio su
+    zona. Devuelve (resultados por modelo, probabilidades de validación por modelo)."""
     results, oof = {}, {}
     for name, model in candidates(rf_trees).items():
         oof[name] = out_of_fold(model, table)
@@ -171,20 +171,19 @@ def evaluate_candidates(table: pd.DataFrame, rf_trees: int = RF_TREES) -> tuple[
         log.info("%s validación: %s", name, results[name]["validation"])
     return results, oof
 
-# Esta función selecciona el modelo con el mayor F1 entre los que alcanzan el Recall objetivo, desempate por PR-AUC. Devuelve el nombre del modelo seleccionado.
+
 def select_model(results: dict) -> str:
-    #Entre los modelos que alcanzan el Recall objetivo, el de mayor F1 (desempate por PR-AUC)."""
+    """Entre los modelos que alcanzan el Recall objetivo, el de mayor F1 (desempate por PR-AUC)."""
     eligible = [n for n, r in results.items() if r["validation"]["recall"] >= TARGET_RECALL] or list(results)
     return max(eligible, key=lambda n: (results[n]["validation"]["f1"], results[n]["validation"]["pr_auc"]))
 
-# Esta función extrae solo las métricas F1 y ROC-AUC de un resultado, para el resumen del log. Devuelve un diccionario con estas métricas.
+
 def _f1_and_roc(result: dict) -> dict:
-    #Solo F1 y ROC-AUC de un resultado, para el resumen del log.
     return {k: result[k] for k in ("f1", "roc_auc")}
 
-# Esta función registra un resumen de la ficha en el log, incluyendo el modelo elegido, las referencias oficiales y las pruebas en zonas no vistas. Devuelve None.
+
 def log_summary(card: dict, predictions: pd.DataFrame) -> None:
-    #Resumen de la ficha en el log: modelo, referencias oficiales y pruebas en zonas no vistas."""
+    """Resumen de la ficha en el log: modelo, referencias oficiales y pruebas en zonas no vistas."""
     log.info("modelo elegido %s, validación %s (F1 de marcarlo todo: %s)",
              card["model_version"], card["models"][card["chosen_model"]]["validation"], card["mark_all_f1"])
     log.info("mapas oficiales tal cual: %s", {n: _f1_and_roc(r["validation"]) for n, r in card["baselines"].items()})
@@ -195,10 +194,10 @@ def log_summary(card: dict, predictions: pd.DataFrame) -> None:
     log.info("comprobación con calados de campo: %s", card["field_check"])
     log.info("predicciones: %d celdas, niveles %s", len(predictions), predictions["risk_level"].value_counts().to_dict())
 
-# Esta función principal entrena, valida y guarda el modelo, la ficha y las predicciones. Si quick=True, se utiliza un bosque pequeño y una sola repetición de la importancia por permutación para pruebas rápidas. Devuelve None.
+
 def main(quick: bool = False) -> None:
-    #Entrena, valida y guarda modelo, ficha y predicciones. quick=True (tests): bosque pequeño y una sola repetición
-    #de la importancia por permutación; mismo proceso completo, sin buscar la calidad del modelo.
+    """Entrena, valida y guarda modelo, ficha y predicciones. quick=True (tests): bosque pequeño y una sola repetición
+    de la importancia por permutación; mismo proceso completo, sin buscar la calidad del modelo."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     rf_trees = QUICK_RF_TREES if quick else RF_TREES
@@ -210,12 +209,12 @@ def main(quick: bool = False) -> None:
     table = table.reset_index(drop=True)
     log.info("%d celdas en %d grupos de bloques", len(table), N_FOLDS)
 
-    # 1. Validación cruzada por bloques de cada candidato y 2. selección
+    # Validación cruzada por bloques de cada candidato y selección
     results, oof = evaluate_candidates(table, rf_trees)
     chosen = select_model(results)
     thresholds = results[chosen]["thresholds"]
 
-    # 3. Modelo final entrenado con todas las celdas
+    # Modelo final entrenado con todas las celdas
     model = candidates(rf_trees)[chosen].fit(table[FEATURES], table["flooded"])
 
     references = official_references(table)
@@ -262,7 +261,7 @@ def main(quick: bool = False) -> None:
         "data_sources": pd.read_csv(DATA_SOURCES_FILE)["name"].tolist(),
     }
 
-    # 4. Guardado del modelo, la ficha, el registro de experimentos y las predicciones
+    # Guardado del modelo, la ficha, el registro de experimentos y las predicciones
     joblib.dump(model, MODELS_DIR / f"model_{model_version}.joblib")
     MODEL_CARD_FILE.write_text(json.dumps(card, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     with open(EXPERIMENTS_FILE, "a", encoding="utf-8") as f:
